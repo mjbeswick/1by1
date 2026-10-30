@@ -5,6 +5,6 @@ edition = "2024"
 
 [dependencies]
 fltk = "1.5.23"
-rodio = { version = "0.23.0", default-features = false, features = ["symphonia-all"] }
+rodio = { version = "0.23.0", default-features = false, features = ["playback", "symphonia-all"] }
 serde = { version = "1.0.229", features = ["derive"] }
 toml = "1.1.8"

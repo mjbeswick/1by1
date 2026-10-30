@@ -9,10 +9,14 @@ code, its icons or its language files. Use a different product name.
 
 ## What the inspected binary shows
 
-Source: `~/Downloads/1by1_217.exe`, SHA-256 `e6b586…977d91`. Static only, not run.
+Source: `~/Downloads/1by1_217_clean.exe`, 374,722 bytes, SHA-256 `98525102…5ba984`.
+Static only, not run. Payload not extracted. Earlier notes used a different build
+(`e6b586…977d91`). Its details are superseded.
 
-- Self-extracting ZIP. Payload: `1by1.exe` (PE32, x86), 12 `lan*.ini` language files,
-  `Readme.htm`, `License.txt`.
+- Self-extracting ZIP. Payload: `1by1.exe`, 11 `lan*.ini` language files, `Readme.htm`.
+  No `License.txt` in this build. Version string: 2.17, 2026-08-21.
+- The Readme is the only spec read. Readme text was extracted from the installer with
+  `zipfile`. Nothing else from the payload was opened.
 - Win32 GUI, MinGW-built, per-monitor DPI aware, `asInvoker`. Not Authenticode-signed.
 - Audio via BASS (per Readme). Formats: MP3, WAV, OGG, AAC, MP4, FLAC, CD, plus plugins.
 - Has an HTTP/streaming server, a systray icon, logging, WAV export, cue sheets, playlists.
@@ -23,7 +27,10 @@ Source: `~/Downloads/1by1_217.exe`, SHA-256 `e6b586…977d91`. Static only, not 
 
 - [x] Cargo project scaffolded, `fltk` dependency added
 - [x] Window skeleton builds (transport row, placeholder body, status bar), no wiring
-- [ ] Decisions in "Open questions" resolved
+- [x] Decisions in "Open questions" resolved (see below)
+- [x] Readme read; MVP shortcut list written below
+- [x] Core MVP wired: tree, list, playback, repeat, shuffle, volume, mute, skip, resume, drop
+- [ ] Windows build not run
 
 ## Scope
 
@@ -56,11 +63,11 @@ Source: `~/Downloads/1by1_217.exe`, SHA-256 `e6b586…977d91`. Static only, not 
 | Concern | Choice | Alternative rejected | Why |
 |---|---|---|---|
 | GUI | `fltk` crate (fltk-rs), FLTK 1.4 | egui, native Win32 via `windows` crate | Matches the look and small footprint. Native-feel widgets. |
-| Decode | `symphonia` (MP3, FLAC, WAV, OGG, AAC, MP4) | BASS (closed binary, licence) | Pure Rust, no DLL, permissive licence. |
-| Output | `cpal` | `rodio` | rodio hides the sink we need for gapless and volume later. Add `rodio` only if cpal gets painful. |
-| Tags and duration | `lofty` | `id3` crate | One crate for ID3, Vorbis, MP4 tags. |
-| Config | `serde` + `toml` in `dirs` config path | Registry | Portable. Matches "portable" mode of original. |
-| Tree walk | `walkdir` | std recursion | Less code. |
+| Decode + output | `rodio` 0.23, `symphonia-all` (MP3, FLAC, WAV, OGG, AAC, MP4) | `symphonia` + `cpal` by hand | Resampling and channel conversion come free. Hand-rolled was the painful part. Supersedes the earlier choice. |
+| Tags | none in MVP | `lofty` | Not needed for filename-only list. Add later. |
+| Config | `serde` + `toml`, path from env | `dirs`, Registry | Portable. Fewer deps. |
+| Tree walk | std `fs::read_dir` | `walkdir` | Less code. |
+| Gapless (later) | rodio mixer, or cpal if rodio blocks it | — | Revisit at Later stage. |
 
 Target: Windows x86_64 first. Build with `cargo build --release`.
 Cross-compile check on macOS with `x86_64-pc-windows-gnu` later, if useful.
@@ -69,23 +76,54 @@ Cross-compile check on macOS with `x86_64-pc-windows-gnu` later, if useful.
 
 - `src/main.rs`: window, menus, shortcuts, wiring. One file to start.
 - `src/player.rs`: decode thread, output stream, play state, position. Channel to UI.
-- `src/library.rs`: folder tree and track list model. Scan on a worker thread.
-- `src/settings.rs`: load and save TOML.
+- `src/logic.rs`: pure next/prev/repeat/shuffle and decode-skip logic. No fltk, no rodio.
+- `src/settings.rs`: load and save TOML. Pure.
+- `src/library.rs`: folder scan (sync, `read_dir`) and audio-file filter.
 
-Keep UI to player-thread messages (`mpsc`). No shared mutable state across threads.
+Single thread. All widgets and playback driven from FLTK callbacks and one timer.
 
-## Open questions (need your call)
+## Decisions (defaults taken, not asked)
 
-1. Windows only, or macOS too for dev? Plan assumes Windows target, dev on macOS.
-2. Audio stack OK with symphonia + cpal, or must it be BASS-equivalent output quality?
-3. Name for the product. Plan uses `1by1-rs` as the working name.
-4. MVP scope above OK, or cut more (e.g. drop resume play)?
-5. Ship a shared FLTK build with static linking, or dynamic? Static is simpler for a single exe.
+1. Target Windows x86_64. Dev and smoke-run on macOS. Windows build not yet built.
+2. Audio: `rodio` 0.23 with `symphonia-all`. Replaces `symphonia` + `cpal`. Reason: rodio
+   handles resampling and channel conversion. Hand-rolled cpal needed both.
+3. Name: keep `1by1-rs` and crate `onebyone`. One const `APP_NAME` in `main.rs`. Rename before any distribution.
+4. MVP scope as listed. Resume play kept.
+5. FLTK default build (fltk-sys). Static vs dynamic decided at packaging.
+
+Other choices made during build:
+
+- Tree: full recursive folder scan on root add. `// ponytail:` marks it. Lazy per-node scan if big libraries stall.
+- Track list: `HoldBrowser`, not `Table`. Plain list is enough for MVP.
+- No `walkdir`, no `lofty`, no `dirs`. Config path from env vars.
+- Settings: TOML at `<config>/1by1-rs/settings.toml`.
+- Playback: one `Player` per track. 0.25s FLTK timeout polls position and `empty()`. No player thread.
+- Repeat, next/prev, decode-skip cap: pure functions in `src/logic.rs`, one `#[test]`.
+
+## MVP shortcuts (from Readme, subset)
+
+| Key | Action |
+|---|---|
+| Space | Stop / resume (resume uses saved file and position) |
+| Return | Play selected track |
+| Ctrl+Up / Ctrl+Down | Volume |
+| Ctrl+Left / Ctrl+Right | Previous / next track |
+| Pause | Mute |
+| Ctrl+R | Cycle repeat (off, all, one) |
+| Ctrl+O | Toggle shuffle (Readme: cycle order type; full cycle later) |
+| Ctrl+H | Go home (current track) |
+| Del | Skip track (removed from list until reload) |
+| F5 or Ctrl+End | Rescan tree and list |
+| Ctrl+Q | Quit |
+
+Not in MVP: Ins, Shift+(Pg)Up/Down move, F3 finder, F4 tree toggle, F7 compact, Ctrl+S, Ctrl+N intro scan, and the rest of the Readme list.
 
 ## Verification
 
-- [ ] Unit check on the position and resume logic (`assert`-based or one small test file)
-- [ ] Play a set of mixed-format test files end to end
+- [x] Unit check on pure logic and settings round-trip (`cargo test`)
+- [x] Seek check per format: MP3, FLAC, WAV, M4A, MP4, Vorbis OGG pass. Opus-in-OGG does not decode (symphonia). Run: `ONEBYONE_FIXTURES=<dir> cargo test`
+- [x] Launch smoke test on macOS: window, tree, list, restored resume state. Audible playback not checked.
+- [ ] Play a set of mixed-format test files end to end by ear
 - [ ] Keyboard shortcuts smoke test on Windows build
 - [ ] Compare behaviour against original 1by1 on same folder (manual, one-off)
 
