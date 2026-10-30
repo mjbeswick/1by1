@@ -100,6 +100,16 @@ Other choices made during build:
 - Playback: one `Player` per track. 0.25s FLTK timeout polls position and `empty()`. No player thread.
 - Repeat, next/prev, decode-skip cap: pure functions in `src/logic.rs`, one `#[test]`.
 
+## UI pass (clean room, Readme only)
+
+Source: Readme text. The original was not run and no screenshots were taken.
+
+- [x] Status bar: message left, mode flags right (REPEAT, SHUF, VOL, MUTE)
+- [x] Title bar shows current track
+- [x] F4 toggles tree
+- [ ] Sort tabs. Skipped: single-folder list has no path sort yet.
+- [ ] F7 compact view, F1 main menu, F6 settings window, context menus, big view
+
 ## MVP shortcuts (from Readme, subset)
 
 | Key | Action |

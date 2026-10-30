@@ -16,7 +16,7 @@ use fltk::{
     browser::HoldBrowser,
     button::Button,
     dialog::{FileDialog, FileDialogType},
-    enums::{Event, Key, Shortcut},
+    enums::{Align, Event, Key, Shortcut},
     frame::Frame,
     group::{Flex, Tile},
     prelude::*,
@@ -31,6 +31,9 @@ use settings::Settings;
 pub const APP_NAME: &str = "1by1-rs";
 const TICK: f64 = 0.25;
 const VOL_STEP: f32 = 0.05;
+/// Body area under the toolbar: x, y, w, h. Tree is 300 wide when shown.
+const BODY: (i32, i32, i32, i32) = (4, 36, 892, 538);
+const TREE_W: i32 = 300;
 
 struct State {
     audio: Option<Audio>,
@@ -46,6 +49,8 @@ struct State {
     tree: Tree,
     list: HoldBrowser,
     status: Frame,
+    flags: Frame,
+    win: Window,
     repeat_btn: Button,
     shuffle_btn: Button,
 }
@@ -74,6 +79,32 @@ impl State {
         self.repeat_btn.set_label(&format!("Repeat: {}", self.settings.repeat.label()));
         let shuffle = if self.settings.shuffle { "on" } else { "off" };
         self.shuffle_btn.set_label(&format!("Shuffle: {shuffle}"));
+        self.refresh_flags();
+    }
+
+    /// Right side of the status bar. Short codes, as in the Readme.
+    fn refresh_flags(&mut self) {
+        let mut parts = vec![format!("REPEAT {}", self.settings.repeat.label().to_uppercase())];
+        if self.settings.shuffle {
+            parts.push("SHUF".into());
+        }
+        parts.push(format!("VOL {}%", (self.settings.volume * 100.0).round()));
+        if self.muted {
+            parts.push("MUTE".into());
+        }
+        self.flags.set_label(&parts.join("  "));
+    }
+
+    fn toggle_tree(&mut self) {
+        let (x, y, w, h) = BODY;
+        if self.tree.visible() {
+            self.tree.hide();
+            self.list.resize(x, y, w, h);
+        } else {
+            self.tree.show();
+            self.list.resize(x + TREE_W, y, w - TREE_W, h);
+        }
+        self.list.redraw();
     }
 
     fn load_dir(&mut self, dir: PathBuf) {
@@ -114,6 +145,7 @@ impl State {
                 self.list.select(idx as i32 + 1);
                 self.settings.last_file = Some(path.clone());
                 self.settings.last_pos = seek.as_secs_f64();
+                self.win.set_label(&format!("{} - {APP_NAME}", name(&path)));
                 self.say(format!("Playing: {}", name(&path)));
                 true
             }
@@ -194,12 +226,14 @@ impl State {
         let v = self.settings.volume + if up { VOL_STEP } else { -VOL_STEP };
         self.settings.volume = v.clamp(0.0, 1.0);
         self.apply_volume();
+        self.refresh_buttons();
         self.say(format!("Volume {}%", (self.settings.volume * 100.0).round()));
     }
 
     fn toggle_mute(&mut self) {
         self.muted = !self.muted;
         self.apply_volume();
+        self.refresh_buttons();
         self.say(if self.muted { "Muted" } else { "Unmuted" });
     }
 
@@ -377,6 +411,7 @@ fn handle_key(st: &mut State) -> bool {
             }
         }
         (false, Key::Pause) => st.toggle_mute(),
+        (false, Key::F4) => st.toggle_tree(),
         (false, Key::Delete) => st.skip_selected(),
         (false, Key::F5) | (true, Key::End) => {
             build_tree(st);
@@ -419,13 +454,21 @@ fn main() {
 
     // Body: folder tree left, track list right, resizable split.
     // ponytail: fixed body geometry for the 900x600 window. Resize is not wired yet.
-    let tile = Tile::new(4, 36, 892, 538, None);
-    let tree = Tree::new(4, 36, 300, 538, None);
-    let list = HoldBrowser::new(304, 36, 592, 538, None);
+    let (bx, by, bw, bh) = BODY;
+    let tile = Tile::new(bx, by, bw, bh, None);
+    let tree = Tree::new(bx, by, TREE_W, bh, None);
+    let list = HoldBrowser::new(bx + TREE_W, by, bw - TREE_W, bh, None);
     tile.end();
 
-    let status = Frame::default().with_label("Ready");
-    col.fixed(&status, 22);
+    // Status bar: message left, mode flags right.
+    let mut sbar = Flex::default().row();
+    let mut status = Frame::default().with_label("Ready");
+    status.set_align(Align::Inside | Align::Left);
+    let mut flags = Frame::default();
+    flags.set_align(Align::Inside | Align::Right);
+    sbar.end();
+    sbar.fixed(&flags, 320);
+    col.fixed(&sbar, 22);
 
     col.end();
     win.end();
@@ -446,6 +489,8 @@ fn main() {
         tree: tree.clone(),
         list: list.clone(),
         status: status.clone(),
+        flags: flags.clone(),
+        win: win.clone(),
         repeat_btn: repeat_b.clone(),
         shuffle_btn: shuffle_b.clone(),
     };
