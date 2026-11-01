@@ -1,597 +1,669 @@
+mod app;
+mod http;
+mod iconpack;
+mod icons;
 mod library;
 mod logic;
+mod milkdrop;
 mod player;
 mod settings;
+mod theme;
+mod ui;
 
 use std::{
     cell::RefCell,
-    collections::HashMap,
-    path::{Path, PathBuf},
+    collections::VecDeque,
+    path::PathBuf,
     rc::Rc,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::Instant,
 };
 
 use fltk::{
-    app,
-    browser::HoldBrowser,
-    button::Button,
-    dialog::{FileDialog, FileDialogType},
-    enums::{Align, Event, Key, Shortcut},
-    frame::Frame,
-    group::{Flex, Tile},
+    app::{self as fapp, App as FltkApp},
+    enums::{Event, FrameType, Key, Shortcut},
     prelude::*,
-    tree::{Tree, TreeReason},
-    window::Window,
 };
 
-use logic::mmss;
+use crate::app::{App, Focus, Msg};
 use player::Audio;
-use settings::Settings;
+use theme::Palette;
 
-pub const APP_NAME: &str = "1by1-rs";
-const TICK: f64 = 0.25;
-const VOL_STEP: f32 = 0.05;
-/// Body area under the toolbar: x, y, w, h. Tree is 300 wide when shown.
-const BODY: (i32, i32, i32, i32) = (4, 36, 892, 538);
-const TREE_W: i32 = 300;
-
-struct State {
-    audio: Option<Audio>,
-    settings: Settings,
-    settings_path: Option<PathBuf>,
-    dir: Option<PathBuf>,
-    /// Files of `dir` in play order. Shuffled when shuffle is on.
-    queue: Vec<PathBuf>,
-    cur: usize,
-    muted: bool,
-    /// Tree pathname (`Music/Jazz`) to folder on disk.
-    paths: HashMap<String, PathBuf>,
-    tree: Tree,
-    list: HoldBrowser,
-    status: Frame,
-    flags: Frame,
-    win: Window,
-    repeat_btn: Button,
-    shuffle_btn: Button,
+#[cfg(target_os = "macos")]
+unsafe extern "C" {
+    fn md_window_opaque(handle: *mut std::ffi::c_void);
 }
 
-type Shared = Rc<RefCell<State>>;
+pub const APP_NAME: &str = "1by1";
 
-impl State {
-    fn say(&mut self, msg: impl AsRef<str>) {
-        self.status.set_label(msg.as_ref());
-    }
+struct Args {
+    path: Option<PathBuf>,
+    resume: bool,
+    resume_track: bool,
+    resume_dir: bool,
+    close_after: bool,
+    hide: bool,
+    enqueue: bool,
+}
 
-    fn cur_path(&self) -> Option<PathBuf> {
-        self.queue.get(self.cur).cloned()
-    }
-
-    fn selected(&self) -> Option<usize> {
-        let v = self.list.value();
-        (v > 0 && (v as usize) <= self.queue.len()).then(|| v as usize - 1)
-    }
-
-    fn volume_now(&self) -> f32 {
-        if self.muted { 0.0 } else { self.settings.volume }
-    }
-
-    fn refresh_buttons(&mut self) {
-        self.repeat_btn.set_label(&format!("Repeat: {}", self.settings.repeat.label()));
-        let shuffle = if self.settings.shuffle { "on" } else { "off" };
-        self.shuffle_btn.set_label(&format!("Shuffle: {shuffle}"));
-        self.refresh_flags();
-    }
-
-    /// Right side of the status bar. Short codes, as in the Readme.
-    fn refresh_flags(&mut self) {
-        let mut parts = vec![format!("REPEAT {}", self.settings.repeat.label().to_uppercase())];
-        if self.settings.shuffle {
-            parts.push("SHUF".into());
-        }
-        parts.push(format!("VOL {}%", (self.settings.volume * 100.0).round()));
-        if self.muted {
-            parts.push("MUTE".into());
-        }
-        self.flags.set_label(&parts.join("  "));
-    }
-
-    fn toggle_tree(&mut self) {
-        let (x, y, w, h) = BODY;
-        if self.tree.visible() {
-            self.tree.hide();
-            self.list.resize(x, y, w, h);
-        } else {
-            self.tree.show();
-            self.list.resize(x + TREE_W, y, w - TREE_W, h);
-        }
-        self.list.redraw();
-    }
-
-    fn load_dir(&mut self, dir: PathBuf) {
-        self.settings.last_dir = Some(dir.clone());
-        self.dir = Some(dir);
-        self.relist(None);
-    }
-
-    /// Rebuild queue and list from disk. `keep` stays current if still present.
-    fn relist(&mut self, keep: Option<PathBuf>) {
-        let Some(dir) = self.dir.clone() else { return };
-        let mut files = library::audio_files(&dir);
-        if self.settings.shuffle {
-            logic::shuffle(&mut files, seed());
-        }
-        self.queue = files;
-        self.list.clear();
-        for f in &self.queue {
-            self.list.add(&label(f));
-        }
-        self.cur = keep.and_then(|k| self.queue.iter().position(|p| *p == k)).unwrap_or(0);
-        if !self.queue.is_empty() {
-            self.list.select(self.cur as i32 + 1);
-        }
-    }
-
-    /// Start `queue[idx]` at `seek`. Returns false and shows the error on failure.
-    fn play_index(&mut self, idx: usize, seek: Duration) -> bool {
-        let Some(path) = self.queue.get(idx).cloned() else { return false };
-        let vol = self.volume_now();
-        let Some(audio) = self.audio.as_mut() else {
-            self.say("No audio output device.");
-            return false;
-        };
-        match audio.play(&path, seek, vol) {
-            Ok(()) => {
-                self.cur = idx;
-                self.list.select(idx as i32 + 1);
-                self.settings.last_file = Some(path.clone());
-                self.settings.last_pos = seek.as_secs_f64();
-                self.win.set_label(&format!("{} - {APP_NAME}", name(&path)));
-                self.say(format!("Playing: {}", name(&path)));
-                true
-            }
-            Err(e) => {
-                self.say(format!("Cannot play {}: {e}", name(&path)));
-                false
+fn parse_args() -> Args {
+    let mut out = Args {
+        path: None,
+        resume: false,
+        resume_track: false,
+        resume_dir: false,
+        close_after: false,
+        hide: false,
+        enqueue: false,
+    };
+    for arg in std::env::args().skip(1) {
+        match arg.to_ascii_lowercase().as_str() {
+            "/r" => out.resume = true,
+            "/rt" => out.resume_track = true,
+            "/rd" => out.resume_dir = true,
+            "/close" => out.close_after = true,
+            "/hide" => out.hide = true,
+            "/enqueue" => out.enqueue = true,
+            "/newinst" | "/localini" => {}
+            _ => {
+                if arg.len() > 2 && arg.starts_with('/') && arg[1..].chars().all(|c| c.is_ascii_alphabetic()) {
+                    continue;
+                }
+                out.path = Some(PathBuf::from(arg));
             }
         }
     }
-
-    /// Next track, skipping files that fail to open. Stops at end of list.
-    fn next(&mut self) {
-        let mut failed = 0;
-        let hit = logic::advance_playable(self.queue.len(), self.cur, self.settings.repeat, |i| {
-            let ok = self.play_index(i, Duration::ZERO);
-            failed += usize::from(!ok);
-            ok
-        });
-        match hit {
-            Some(_) if failed > 0 => {
-                let msg = format!("{} | skipped {failed} unplayable", self.status_text());
-                self.say(msg);
-            }
-            Some(_) => {}
-            None => self.end_of_list(),
-        }
-    }
-
-    fn prev(&mut self) {
-        if self.queue.is_empty() {
-            return;
-        }
-        let idx = logic::prev_index(self.cur);
-        self.play_index(idx, Duration::ZERO);
-    }
-
-    fn end_of_list(&mut self) {
-        if let Some(a) = self.audio.as_mut() {
-            a.stop();
-        }
-        self.settings.last_pos = 0.0;
-        self.say("End of list.");
-    }
-
-    fn status_text(&self) -> String {
-        self.settings.last_file.as_deref().map(name).unwrap_or_default()
-    }
-
-    /// Space. Playing stops. Stopped resumes the saved file at the saved position.
-    fn toggle(&mut self) {
-        if self.audio.as_ref().is_some_and(|a| a.is_playing()) {
-            self.stop();
-            return;
-        }
-        let Some(cur) = self.cur_path() else {
-            self.say("No track. Pick a folder first.");
-            return;
-        };
-        let seek = if self.settings.last_file.as_ref() == Some(&cur) {
-            Duration::from_secs_f64(self.settings.last_pos)
-        } else {
-            Duration::ZERO
-        };
-        self.play_index(self.cur, seek);
-    }
-
-    fn stop(&mut self) {
-        if let Some(a) = self.audio.as_mut() {
-            if let Some(p) = a.pos() {
-                self.settings.last_pos = p.as_secs_f64();
-            }
-            a.stop();
-        }
-        self.say("Stopped. Space resumes.");
-    }
-
-    fn set_volume_step(&mut self, up: bool) {
-        let v = self.settings.volume + if up { VOL_STEP } else { -VOL_STEP };
-        self.settings.volume = v.clamp(0.0, 1.0);
-        self.apply_volume();
-        self.refresh_buttons();
-        self.say(format!("Volume {}%", (self.settings.volume * 100.0).round()));
-    }
-
-    fn toggle_mute(&mut self) {
-        self.muted = !self.muted;
-        self.apply_volume();
-        self.refresh_buttons();
-        self.say(if self.muted { "Muted" } else { "Unmuted" });
-    }
-
-    fn apply_volume(&mut self) {
-        let v = self.volume_now();
-        if let Some(a) = &self.audio {
-            a.set_volume(v);
-        }
-    }
-
-    fn cycle_repeat(&mut self) {
-        self.settings.repeat = self.settings.repeat.cycle();
-        self.refresh_buttons();
-        self.say(format!("Repeat: {}", self.settings.repeat.label()));
-    }
-
-    fn toggle_shuffle(&mut self) {
-        self.settings.shuffle = !self.settings.shuffle;
-        let keep = self.cur_path();
-        self.relist(keep);
-        self.refresh_buttons();
-        self.say(if self.settings.shuffle { "Shuffle on" } else { "Shuffle off" });
-    }
-
-    /// Del. Removes the selected file from the list. Removing the playing file plays its replacement.
-    fn skip_selected(&mut self) {
-        let Some(sel) = self.selected() else { return };
-        let was_current = sel == self.cur;
-        self.queue.remove(sel);
-        self.list.remove(sel as i32 + 1);
-        if sel < self.cur {
-            self.cur -= 1;
-        }
-        if !was_current {
-            return;
-        }
-        if self.queue.is_empty() {
-            self.end_of_list();
-        } else {
-            self.play_index(sel.min(self.queue.len() - 1), Duration::ZERO);
-        }
-    }
-
-    fn home(&mut self) {
-        if !self.queue.is_empty() {
-            self.list.select(self.cur as i32 + 1);
-        }
-    }
-
-    fn tick(&mut self) {
-        let Some(a) = self.audio.as_ref() else { return };
-        if a.is_playing() {
-            if let Some(p) = a.pos() {
-                self.settings.last_pos = p.as_secs_f64();
-                let msg = format!("{} | {}", name_of(self.cur_path()), mmss(p));
-                self.say(msg);
-            }
-        } else if a.finished() {
-            self.next();
-        }
-    }
-
-    fn save(&self) {
-        if let Some(p) = &self.settings_path {
-            if let Err(e) = settings::save(p, &self.settings) {
-                eprintln!("settings not saved: {e}");
-            }
-        }
-    }
-}
-
-fn seed() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos() as u64)
-        .unwrap_or(1)
-}
-
-fn name(p: &Path) -> String {
-    p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
-}
-
-fn name_of(p: Option<PathBuf>) -> String {
-    p.as_deref().map(name).unwrap_or_default()
-}
-
-/// FLTK browser lines treat a leading `@` as a format code. Double it to show it literally.
-fn label(p: &Path) -> String {
-    name(p).replace('@', "@@")
-}
-
-/// Tree key for a root folder. Two roots with the same name get a suffix.
-fn root_key(paths: &HashMap<String, PathBuf>, dir: &Path) -> String {
-    let base = name(dir).replace('/', "_");
-    let base = if base.is_empty() { "Root".to_string() } else { base };
-    let mut key = base.clone();
-    let mut n = 2;
-    while paths.contains_key(&key) {
-        key = format!("{base} ({n})");
-        n += 1;
-    }
-    key
-}
-
-/// Adds `dir` and its subfolders. Full scan on add.
-// ponytail: full recursive scan on add. Per-node lazy scan if big libraries stall.
-fn add_node(tree: &mut Tree, paths: &mut HashMap<String, PathBuf>, key: String, dir: &Path) {
-    let _ = tree.add(&key);
-    paths.insert(key.clone(), dir.to_path_buf());
-    for sub in library::subdirs(dir) {
-        let child = format!("{key}/{}", name(&sub));
-        add_node(tree, paths, child, &sub);
-    }
-}
-
-/// Rebuild tree from `settings.roots`, then re-select `last_dir`. Does not fire callbacks.
-fn build_tree(st: &mut State) {
-    st.tree.clear();
-    st.paths.clear();
-    for root in st.settings.roots.clone() {
-        if root.is_dir() {
-            let key = root_key(&st.paths, &root);
-            add_node(&mut st.tree, &mut st.paths, key, &root);
-        }
-    }
-    let Some(dir) = st.settings.last_dir.clone() else { return };
-    if let Some(key) = st.paths.iter().find(|(_, p)| **p == dir).map(|(k, _)| k.clone()) {
-        let _ = st.tree.select(&key, false);
-    }
-}
-
-impl State {
-    fn add_root(&mut self, dir: PathBuf) {
-        if self.settings.roots.contains(&dir) {
-            return;
-        }
-        self.settings.roots.push(dir.clone());
-        let key = root_key(&self.paths, &dir);
-        add_node(&mut self.tree, &mut self.paths, key.clone(), &dir);
-        let _ = self.tree.select(&key, false);
-        self.load_dir(dir);
-        self.save();
-    }
-}
-
-/// Dropped text: a path or `file://` URI. A file means its folder.
-fn drop_dir(line: &str) -> Option<PathBuf> {
-    let p = PathBuf::from(line.trim().trim_start_matches("file://").replace("%20", " "));
-    if p.is_dir() {
-        Some(p)
-    } else if p.is_file() {
-        p.parent().map(Path::to_path_buf)
-    } else {
-        None
-    }
-}
-
-fn pick_dir() -> Option<PathBuf> {
-    let mut d = FileDialog::new(FileDialogType::BrowseDir);
-    d.set_title("Add folder");
-    d.show();
-    let p = d.filename();
-    (!p.as_os_str().is_empty()).then_some(p)
-}
-
-fn handle_key(st: &mut State) -> bool {
-    let ctrl = app::event_state().contains(Shortcut::Ctrl);
-    let key = app::event_key();
-    let space = Key::from_char(' ');
-    match (ctrl, key) {
-        (false, k) if k == space => st.toggle(),
-        (false, Key::Enter) => {
-            if let Some(sel) = st.selected() {
-                st.play_index(sel, Duration::ZERO);
-            }
-        }
-        (false, Key::Pause) => st.toggle_mute(),
-        (false, Key::F4) => st.toggle_tree(),
-        (false, Key::Delete) => st.skip_selected(),
-        (false, Key::F5) | (true, Key::End) => {
-            build_tree(st);
-            st.say("Rescanned.");
-        }
-        (true, Key::Up) => st.set_volume_step(true),
-        (true, Key::Down) => st.set_volume_step(false),
-        (true, Key::Left) => st.prev(),
-        (true, Key::Right) => st.next(),
-        (true, Key::Home) => st.home(),
-        (true, k) if k == Key::from_char('h') => st.home(),
-        (true, k) if k == Key::from_char('r') => st.cycle_repeat(),
-        (true, k) if k == Key::from_char('o') => st.toggle_shuffle(),
-        (true, k) if k == Key::from_char('q') => {
-            st.save();
-            app::quit();
-        }
-        _ => return false,
-    }
-    true
+    out
 }
 
 fn main() {
-    let app = app::App::default().with_scheme(app::Scheme::Gtk);
-    let mut win = Window::default().with_size(900, 600).with_label(APP_NAME);
+    std::panic::set_hook(Box::new(|info| {
+        eprintln!("PANIC: {info}");
+    }));
+    let args = parse_args();
+    let cfg = settings::path();
+    let settings0 = settings::load(&cfg);
+    let os_dark = theme::os_dark();
+    let pal = Palette::os(os_dark);
 
-    let mut col = Flex::default_fill().column();
-    col.set_margin(4);
+    let mut fltk_app = FltkApp::default();
+    fltk_app.set_scheme(fapp::Scheme::Gtk);
+    let (pr, pg, pb) = pal.window.to_rgb();
+    fapp::background(pr, pg, pb);
+    fapp::set_visible_focus(false);
+    fltk::misc::Tooltip::enable(true);
+    fltk::misc::Tooltip::set_delay(0.45);
 
-    let bar = Flex::default().row();
-    let prev_b = Button::default().with_label("|<");
-    let play_b = Button::default().with_label("Play");
-    let stop_b = Button::default().with_label("Stop");
-    let next_b = Button::default().with_label(">|");
-    let repeat_b = Button::default().with_label("Repeat: off");
-    let shuffle_b = Button::default().with_label("Shuffle: off");
-    let add_b = Button::default().with_label("Add folder");
-    bar.end();
-    col.fixed(&bar, 32);
-
-    // Body: folder tree left, track list right, resizable split.
-    // ponytail: fixed body geometry for the 900x600 window. Resize is not wired yet.
-    let (bx, by, bw, bh) = BODY;
-    let tile = Tile::new(bx, by, bw, bh, None);
-    let tree = Tree::new(bx, by, TREE_W, bh, None);
-    let list = HoldBrowser::new(bx + TREE_W, by, bw - TREE_W, bh, None);
-    tile.end();
-
-    // Status bar: message left, mode flags right.
-    let mut sbar = Flex::default().row();
-    let mut status = Frame::default().with_label("Ready");
-    status.set_align(Align::Inside | Align::Left);
-    let mut flags = Frame::default();
-    flags.set_align(Align::Inside | Align::Right);
-    sbar.end();
-    sbar.fixed(&flags, 320);
-    col.fixed(&sbar, 22);
-
-    col.end();
-    win.end();
-    win.resizable(&col);
-
-    let settings_path = settings::path();
-    let settings = settings_path.as_deref().map(settings::load).unwrap_or_default();
+    let ui = ui::build(&settings0, pal);
     let audio = Audio::open();
-    let mut state = State {
-        audio: None,
-        settings,
-        settings_path,
+    let pending: Rc<RefCell<VecDeque<Msg>>> = Rc::new(RefCell::new(VecDeque::new()));
+
+    let mut state = App {
+        s: settings0.clone(),
+        cfg,
+        pal,
+        ui,
         dir: None,
-        queue: Vec::new(),
+        audio: None,
         cur: 0,
-        muted: false,
-        paths: HashMap::new(),
-        tree: tree.clone(),
-        list: list.clone(),
-        status: status.clone(),
-        flags: flags.clone(),
-        win: win.clone(),
-        repeat_btn: repeat_b.clone(),
-        shuffle_btn: shuffle_b.clone(),
+        focus: Focus::Files,
+        queued_next: false,
+        quit_after: false,
+        quit_at_end: args.close_after,
+        intro: None,
+        log_lines: Vec::new(),
+        last_save: Instant::now(),
+        pending: pending.clone(),
+        dirs: Vec::new(),
+        status_msg: String::new(),
+        dirty: false,
+        http: None,
+        me: std::rc::Weak::<RefCell<App>>::new(),
+        started: Instant::now(),
+        full_size: (settings0.win_size.0.max(640), settings0.win_size.1.max(360)),
+        panel_drag: None,
+        milkdrop: None,
+        milkdrop_failed: false,
+        visual_full: None,
+        hover_hint: None,
+        os_dark,
+        last_theme_check: Instant::now(),
+        last_fs_check: Instant::now(),
+        list_sig: 0,
+        list_from_dir: true,
     };
-    match audio {
-        Ok(a) => state.audio = Some(a),
-        Err(e) => state.say(format!("No audio output: {e}")),
-    }
-    build_tree(&mut state);
-    state.refresh_buttons();
-    if let Some(dir) = state.settings.last_dir.clone() {
-        state.load_dir(dir);
-        if let Some(file) = state.settings.last_file.clone() {
-            state.relist(Some(file.clone()));
-            let pos = Duration::from_secs_f64(state.settings.last_pos);
-            let msg = format!("Ready: {} at {}. Space resumes.", name(&file), mmss(pos));
-            state.say(msg);
-        }
+    if let Ok(a) = audio {
+        state.audio = Some(a);
+    } else if let Err(e) = audio {
+        state.say(format!("No audio output: {e}"));
     }
 
-    let st: Shared = Rc::new(RefCell::new(state));
+    // Restore the saved playlist.
+    let saved_playlist = state.s.last_playlist.clone();
+    if !saved_playlist.is_empty() {
+        let tracks: Vec<library::Track> = saved_playlist
+            .iter()
+            .filter(|p| p.is_file())
+            .map(|p| library::Track::new(p.clone()))
+            .collect();
+        let mut m = state.ui.playlist.model.borrow_mut();
+        m.tracks = tracks;
+        m.sel.clear();
+    }
+    let playlist_open = state.s.playlist_open;
 
-    let s = st.clone();
-    let mut tree = tree;
-    tree.set_callback(move |t| {
-        if !matches!(t.callback_reason(), TreeReason::Selected | TreeReason::Reselected) {
-            return;
-        }
-        let Some(item) = t.callback_item() else { return };
-        let Ok(key) = t.item_pathname(&item) else { return };
-        let mut st = s.borrow_mut();
-        if let Some(dir) = st.paths.get(&key).cloned() {
-            st.load_dir(dir);
-        }
-    });
+    state.ui.relayout(&state.s);
+    state.ui.vol.set(state.s.volume as f64);
+    state.set_theme();
+    state.apply_list_style_public();
+    state.refresh_toolbar();
+    state.ui.win.set_label(APP_NAME);
+    state.s.playlist_open = playlist_open;
+    state.ui.win.end();
+    state.ui.win.set_frame(FrameType::FlatBox);
 
-    let s = st.clone();
-    let mut list = list;
-    list.handle(move |_, ev| {
-        if ev == Event::Push && app::event_clicks() {
-            let mut st = s.borrow_mut();
-            if let Some(sel) = st.selected() {
-                st.play_index(sel, Duration::ZERO);
+    let shared: Rc<RefCell<App>> = Rc::new(RefCell::new(state));
+    shared.borrow_mut().me = Rc::downgrade(&shared);
+
+    install_callbacks(&shared);
+    {
+        let mut a = shared.borrow_mut();
+        crate::ui::menus::install_sys_menu(&mut a);
+    }
+    crate::ui::menus::remember_app(Rc::downgrade(&shared));
+
+    let s0 = shared.borrow().s.clone();
+    {
+        let mut a = shared.borrow_mut();
+        if a.s.roots.is_empty() {
+            let home = std::env::var_os("HOME")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from("/"));
+            a.s.roots.push(home.clone());
+            a.s.base_dir = Some(home);
+        }
+        a.rebuild_tree();
+    }
+
+    let mut start_dir = args
+        .path
+        .clone()
+        .filter(|p| p.is_dir())
+        .or_else(|| args.path.as_ref().and_then(|p| p.parent().map(|p| p.to_path_buf())));
+    if start_dir.is_none() && (s0.start_in_base) {
+        start_dir = s0.base_dir.clone();
+    }
+    if start_dir.is_none() {
+        start_dir = s0.last_dir.clone();
+    }
+    let start_dir = start_dir
+        .or_else(|| s0.base_dir.clone())
+        .or_else(|| shared.borrow().s.roots.first().cloned());
+
+    {
+        let mut a = shared.borrow_mut();
+        if let Some(dir) = start_dir {
+            a.load_dir(dir);
+        }
+        if let Some(file) = args.path.clone().filter(|p| p.is_file()) {
+            let idx = a
+                .files()
+                .borrow()
+                .tracks
+                .iter()
+                .position(|t| t.path == file);
+            if let Some(i) = idx {
+                a.cur = i;
+                if args.enqueue {
+                    a.enqueue_selected();
+                } else {
+                    let seek = if args.resume && !args.resume_track {
+                        std::time::Duration::from_secs_f64(a.s.last_pos)
+                    } else {
+                        std::time::Duration::ZERO
+                    };
+                    a.play_current(seek);
+                }
+            }
+        } else if args.resume || args.resume_track {
+            let seek = if args.resume_track {
+                std::time::Duration::ZERO
+            } else {
+                std::time::Duration::from_secs_f64(a.s.last_pos)
+            };
+            a.play_current(seek);
+        }
+        if a.s.http_enabled {
+            a.act(crate::app::Act::HttpToggle);
+        }
+        a.refresh_toolbar();
+        a.update_title();
+    }
+
+    {
+        let mut a = shared.borrow_mut();
+        if args.hide {
+            a.ui.win.hide();
+        } else {
+            a.ui.win.show();
+            #[cfg(target_os = "macos")]
+            unsafe {
+                md_window_opaque(a.ui.win.raw_handle() as *mut std::ffi::c_void);
             }
         }
-        false
-    });
+    }
 
-    let s = st.clone();
-    let mut b = prev_b;
-    b.set_callback(move |_| s.borrow_mut().prev());
-    let s = st.clone();
-    let mut b = next_b;
-    b.set_callback(move |_| s.borrow_mut().next());
-    let s = st.clone();
-    let mut b = play_b;
-    b.set_callback(move |_| s.borrow_mut().toggle());
-    let s = st.clone();
-    let mut b = stop_b;
-    b.set_callback(move |_| s.borrow_mut().stop());
-    let s = st.clone();
-    let mut b = repeat_b;
-    b.set_callback(move |_| s.borrow_mut().cycle_repeat());
-    let s = st.clone();
-    let mut b = shuffle_b;
-    b.set_callback(move |_| s.borrow_mut().toggle_shuffle());
-    let s = st.clone();
-    let mut b = add_b;
-    // Dialog runs its own event loop. Do not hold the borrow across it.
-    b.set_callback(move |_| {
-        if let Some(dir) = pick_dir() {
-            s.borrow_mut().add_root(dir);
+    let s1 = shared.clone();
+    fapp::add_timeout3(0.03, move |h| {
+        if let Ok(mut a) = s1.try_borrow_mut() {
+            a.dispatch();
         }
+        fapp::repeat_timeout3(0.03, h);
     });
 
-    let s = st.clone();
-    win.handle(move |_, ev| match ev {
-        Event::DndEnter | Event::DndDrag | Event::DndRelease => true,
-        Event::Paste => {
-            let text = app::event_text();
-            let mut st = s.borrow_mut();
-            for dir in text.lines().filter_map(drop_dir) {
-                st.add_root(dir);
+    let s2 = shared.clone();
+    fapp::add_timeout3(0.12, move |h| {
+        if let Ok(mut a) = s2.try_borrow_mut() {
+            a.tick();
+        }
+        fapp::repeat_timeout3(0.12, h);
+    });
+
+    let sv = shared.clone();
+    fapp::add_timeout3(0.066, move |h| {
+        if let Ok(mut a) = sv.try_borrow_mut() {
+            match a.s.cover_mode {
+                crate::settings::CoverMode::Milkdrop => a.tick_visualizer(),
+                _ => {}
             }
+        }
+        fapp::repeat_timeout3(0.066, h);
+    });
+
+    if std::env::var_os("ONEBY1_SMOKE").is_some() {
+        let s = shared.clone();
+        fapp::add_timeout3(0.6, move |h| {
+            if let Ok(mut a) = s.try_borrow_mut() {
+                let row = a.files().borrow().focus;
+                a.play_row(row);
+            }
+            fapp::repeat_timeout3(0.2, h);
+        });
+        let s3 = shared.clone();
+        fapp::add_timeout3(1.2, move |_| {
+            if let Ok(mut a) = s3.try_borrow_mut() {
+                a.scan_all(false);
+                a.act(crate::app::Act::TogglePlaylist);
+                a.act(crate::app::Act::ToggleBig);
+                println!(
+                    "layout: files={:?} playlist={:?} big={:?}",
+                    (a.ui.files.wid.x(), a.ui.files.wid.y(), a.ui.files.wid.w(), a.ui.files.wid.h()),
+                    (a.ui.playlist.wid.x(), a.ui.playlist.wid.y(), a.ui.playlist.wid.w(), a.ui.playlist.wid.h()),
+                    (a.ui.big.wid.x(), a.ui.big.wid.y(), a.ui.big.wid.w(), a.ui.big.wid.h())
+                );
+            }
+        });
+        let s2 = shared.clone();
+        fapp::add_timeout3(6.0, move |_| {
+            if let Ok(mut a) = s2.try_borrow_mut() {
+                println!(
+                    "smoke: playing={} pos={:.2} status={} file={}",
+                    a.is_playing(),
+                    a.pos().as_secs_f32(),
+                    a.status_msg,
+                    a.track().map(|t| t.name).unwrap_or_default()
+                );
+                a.save();
+            }
+            fapp::quit();
+        });
+    }
+
+    // Register a global key handler so shortcuts work for every focused widget.
+    {
+        let weak = Rc::downgrade(&shared);
+        GLOBAL.with(|g| *g.borrow_mut() = Some(weak));
+        fapp::add_handler(global_key);
+    }
+
+    {
+        let s = shared.clone();
+        fapp::add_timeout3(0.25, move |_| {
+            if let Ok(mut a) = s.try_borrow_mut() {
+                let _ = a.ui.files.wid.take_focus();
+            }
+        });
+    }
+
+    fltk_app.run().unwrap();
+    if let Ok(mut a) = shared.try_borrow_mut() {
+        a.save();
+    }
+}
+
+fn install_callbacks(shared: &Rc<RefCell<App>>) {
+    {
+        let w = Rc::downgrade(shared);
+        shared.borrow().ui.bar.on_cmd(move |cmd| {
+            if let Some(a) = w.upgrade() {
+                if let Ok(mut a) = a.try_borrow_mut() {
+                    a.cmd(cmd);
+                }
+            }
+        });
+    }
+    {
+        let w = Rc::downgrade(shared);
+        shared.borrow().ui.bar.on_hover(move |hint| {
+            if let Some(a) = w.upgrade() {
+                if let Ok(mut a) = a.try_borrow_mut() {
+                    a.set_hover_hint(hint);
+                }
+            }
+        });
+    }
+    {
+        let w = Rc::downgrade(shared);
+        shared.borrow().ui.files.on_event(move |ev| {
+            if let Some(a) = w.upgrade() {
+                if let Ok(mut a) = a.try_borrow_mut() {
+                    a.handle_list(Focus::Files, ev);
+                }
+            }
+        });
+    }
+    {
+        let w = Rc::downgrade(shared);
+        shared.borrow().ui.playlist.on_event(move |ev| {
+            if let Some(a) = w.upgrade() {
+                if let Ok(mut a) = a.try_borrow_mut() {
+                    a.handle_list(Focus::Playlist, ev);
+                }
+            }
+        });
+    }
+    {
+        let w = Rc::downgrade(shared);
+        shared.borrow().ui.seek.on_change(move |v| {
+            if let Some(a) = w.upgrade() {
+                if let Ok(mut a) = a.try_borrow_mut() {
+                    a.seek_to(v);
+                }
+            }
+        });
+    }
+    {
+        let w = Rc::downgrade(shared);
+        shared.borrow().ui.vol.on_change(move |v| {
+            if let Some(a) = w.upgrade() {
+                if let Ok(mut a) = a.try_borrow_mut() {
+                    a.set_volume(v);
+                }
+            }
+        });
+    }
+
+    install_split(shared, crate::ui::SplitKind::Tree);
+    install_split(shared, crate::ui::SplitKind::Cover);
+    install_split(shared, crate::ui::SplitKind::Playlist);
+
+    {
+        let w = Rc::downgrade(shared);
+        let mut cover = shared.borrow().ui.cover.wid.clone();
+        cover.handle(move |_, ev| {
+            if ev == Event::Push && fapp::event_button() == 1 && fapp::event_clicks() {
+                if let Some(a) = w.upgrade() {
+                    if let Ok(mut a) = a.try_borrow_mut() {
+                        a.toggle_visual_fullscreen();
+                        return true;
+                    }
+                }
+            }
+            if ev == Event::Released && fapp::event_button() == 3 {
+                if let Some(a) = w.upgrade() {
+                    if let Ok(mut a) = a.try_borrow_mut() {
+                        let (x, y) = (fapp::event_x_root(), fapp::event_y_root());
+                        crate::ui::menus::cover_menu(&mut a, x, y);
+                        return true;
+                    }
+                }
+            }
+            false
+        });
+    }
+
+    // Folder tree selection and lazy expansion.
+    {
+        let w = Rc::downgrade(shared);
+        let mut tree = shared.borrow().ui.tree.clone();
+        tree.set_callback(move |t| {
+            let reason = t.callback_reason();
+            let item = t.callback_item();
+            if let Some(a) = w.upgrade() {
+                if let Ok(mut a) = a.try_borrow_mut() {
+                    a.on_tree(reason, item);
+                }
+            }
+        });
+    }
+
+    // Window events: shortcuts, layout, wheel over the toolbar, close.
+    {
+        let w = Rc::downgrade(shared);
+        let mut win = shared.borrow().ui.win.clone();
+        win.handle(move |win, ev| {
+            let Some(rc) = w.upgrade() else { return false };
+            match ev {
+                Event::KeyDown => {
+                    if let Ok(mut a) = rc.try_borrow_mut() {
+                        return crate::app::handle_key(&mut a);
+                    }
+                    false
+                }
+                Event::Resize => {
+                    if let Ok(mut a) = rc.try_borrow_mut() {
+                        let st = a.s.clone();
+                        a.ui.relayout(&st);
+                        a.ui.win.redraw();
+                    }
+                    false
+                }
+                Event::MouseWheel => {
+                    let (my, dy) = (fapp::event_y(), fapp::event_dy_value());
+                    if my < 40 {
+                        if let Ok(mut a) = rc.try_borrow_mut() {
+                            if a.s.wheel_volume {
+                                if dy > 0 {
+                                    a.volume_step(true);
+                                } else if dy < 0 {
+                                    a.volume_step(false);
+                                }
+                                return true;
+                            }
+                        }
+                    }
+                    false
+                }
+                Event::Push if fapp::event_button() == 3 && fapp::event_y() < 40 => {
+                    if let Ok(mut a) = rc.try_borrow_mut() {
+                        let (x, y) = (fapp::event_x_root(), fapp::event_y_root());
+                        crate::ui::menus::main_menu(&mut a, x, y);
+                        return true;
+                    }
+                    false
+                }
+                Event::Paste => {
+                    let text = fapp::event_text();
+                    if let Ok(mut a) = rc.try_borrow_mut() {
+                        drop_files(&mut a, &text);
+                        return true;
+                    }
+                    false
+                }
+                Event::DndEnter | Event::DndDrag | Event::DndRelease => true,
+                Event::Shortcut => {
+                    if fapp::event_state().contains(Shortcut::Command) {
+                        false
+                    } else {
+                        false
+                    }
+                }
+                Event::Close => {
+                    if let Ok(mut a) = rc.try_borrow_mut() {
+                        if a.s.minimize_on_close {
+                            win.hide();
+                            return true;
+                        }
+                        a.save();
+                    }
+                    fapp::quit();
+                    true
+                }
+                _ => false,
+            }
+        });
+    }
+}
+
+fn install_split(shared: &Rc<RefCell<App>>, kind: crate::ui::SplitKind) {
+    let mut wid = {
+        let a = shared.borrow();
+        match kind {
+            crate::ui::SplitKind::Tree => a.ui.tree_split.wid.clone(),
+            crate::ui::SplitKind::Cover => a.ui.cover_split.wid.clone(),
+            crate::ui::SplitKind::Playlist => a.ui.playlist_split.wid.clone(),
+        }
+    };
+    let weak = Rc::downgrade(shared);
+    wid.handle(move |_, ev| match ev {
+        Event::Enter => {
+            if let Some(rc) = weak.upgrade() {
+                if let Ok(a) = rc.try_borrow() {
+                    let cursor = match kind {
+                        crate::ui::SplitKind::Tree => fltk::enums::Cursor::WE,
+                        crate::ui::SplitKind::Cover => fltk::enums::Cursor::NS,
+                        crate::ui::SplitKind::Playlist => {
+                            if a.s.playlist_pos == crate::settings::PlaylistPos::Right {
+                                fltk::enums::Cursor::WE
+                            } else {
+                                fltk::enums::Cursor::NS
+                            }
+                        }
+                    };
+                    fltk::draw::set_cursor(cursor);
+                    return true;
+                }
+            }
+            false
+        }
+        Event::Leave => {
+            fltk::draw::set_cursor(fltk::enums::Cursor::Default);
             true
         }
-        Event::KeyDown => handle_key(&mut s.borrow_mut()),
+        Event::Push if fapp::event_button() == 1 => {
+            if let Some(rc) = weak.upgrade() {
+                if let Ok(mut a) = rc.try_borrow_mut() {
+                    a.panel_press(kind, fapp::event_x_root(), fapp::event_y_root());
+                    return true;
+                }
+            }
+            false
+        }
+        Event::Drag => {
+            if let Some(rc) = weak.upgrade() {
+                if let Ok(mut a) = rc.try_borrow_mut() {
+                    a.panel_drag_to(fapp::event_x_root(), fapp::event_y_root());
+                    return true;
+                }
+            }
+            false
+        }
+        Event::Released => {
+            if let Some(rc) = weak.upgrade() {
+                if let Ok(mut a) = rc.try_borrow_mut() {
+                    a.panel_release();
+                    return true;
+                }
+            }
+            false
+        }
         _ => false,
     });
+}
 
-    let s = st.clone();
-    win.set_callback(move |_| {
-        s.borrow().save();
-        app::quit();
-    });
+thread_local! {
+    static GLOBAL: RefCell<Option<std::rc::Weak<RefCell<App>>>> = const { RefCell::new(None) };
+}
 
-    let s = st.clone();
-    app::add_timeout3(TICK, move |h| {
-        s.borrow_mut().tick();
-        app::repeat_timeout3(TICK, h);
-    });
+/// Keys handled before the focused widget: function keys and modifier combinations.
+fn global_key(ev: Event) -> bool {
+    if ev != Event::KeyDown {
+        return false;
+    }
+    #[allow(unused)]
+    let key = fapp::event_key();
+    let state = fapp::event_state();
+    let modified = state.contains(Shortcut::Command) || state.contains(Shortcut::Alt);
+    let function = matches!(
+        key,
+        Key::F1 | Key::F2 | Key::F3 | Key::F4 | Key::F5 | Key::F6 | Key::F7 | Key::F8 | Key::F9
+            | Key::F10 | Key::F11 | Key::F12
+    );
+    let plain = !modified
+        && matches!(
+            key,
+            Key::Enter | Key::Delete | Key::Insert | Key::Escape | Key::Pause
+        );
+    if !(modified || function || plain) {
+        return false;
+    }
+    let Some(rc) = GLOBAL.with(|g| g.borrow().as_ref().and_then(|w| w.upgrade())) else {
+        return false;
+    };
+    let Ok(mut a) = rc.try_borrow_mut() else {
+        return false;
+    };
+    // Plain keys belong to text fields and to the focused list.
+    if plain {
+        let focus = fapp::focus();
+        let ours = focus
+            .as_ref()
+            .map(|f| {
+                let p = f.as_widget_ptr() as usize;
+                p == a.ui.files.wid.as_widget_ptr() as usize
+                    || p == a.ui.playlist.wid.as_widget_ptr() as usize
+                    || p == a.ui.tree.as_widget_ptr() as usize
+                    || p == a.ui.win.as_widget_ptr() as usize
+            })
+            .unwrap_or(true);
+        if !ours {
+            return false;
+        }
+    }
+    crate::app::handle_key(&mut a)
+}
 
-    win.show();
-    app.run().unwrap();
+fn drop_files(a: &mut App, text: &str) {
+    for line in text.lines() {
+        let p = PathBuf::from(
+            line.trim()
+                .trim_start_matches("file://")
+                .replace("%20", " "),
+        );
+        if p.is_file() {
+            if let Some(dir) = p.parent() {
+                a.load_dir(dir.to_path_buf());
+                let idx = a
+                    .files()
+                    .borrow()
+                    .tracks
+                    .iter()
+                    .position(|t| t.path == p);
+                if let Some(i) = idx {
+                    a.play_row(i);
+                }
+            }
+        } else if p.is_dir() {
+            a.add_root(p);
+        }
+    }
 }
