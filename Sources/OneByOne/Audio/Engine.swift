@@ -30,7 +30,7 @@ final class Engine {
 
     private let engine = AVAudioEngine()
     private let node = AVAudioPlayerNode()
-    private var tracks: [Track] = []
+    private var tracks: [Feed] = []
     private var timer: Timer?
     private var nextTrackID = 0
     private static let lookaheadFrames: Int64 = Int64(Engine.outputRate)
@@ -101,7 +101,7 @@ final class Engine {
         node.stop()
     }
 
-    private func makeTrack(_ spec: Spec, at seconds: Double) -> Track? {
+    private func makeTrack(_ spec: Spec, at seconds: Double) -> Feed? {
         do {
             let src = try openSource(spec.url)
             let offset = spec.start + seconds
@@ -110,7 +110,7 @@ final class Engine {
                 return nil
             }
             nextTrackID += 1
-            return try Track(id: nextTrackID, spec: spec, source: src, seekBase: seconds, outFormat: outFormat)
+            return try Feed(id: nextTrackID, spec: spec, source: src, seekBase: seconds, outFormat: outFormat)
         } catch {
             onError?(spec, "\(error)")
             return nil
@@ -136,7 +136,7 @@ final class Engine {
 
     /// Returns true when a buffer was scheduled.
     @discardableResult
-    private func feed(_ t: Track) -> Bool {
+    private func feed(_ t: Feed) -> Bool {
         guard let out = t.nextBuffer() else {
             if let tail = t.flush(), tail.frameLength > 0 {
                 schedule(tail, on: t)
@@ -148,7 +148,7 @@ final class Engine {
         return true
     }
 
-    private func schedule(_ buf: AVAudioPCMBuffer, on t: Track) {
+    private func schedule(_ buf: AVAudioPCMBuffer, on t: Feed) {
         let n = Int64(buf.frameLength)
         t.fedFrames += n
         node.scheduleBuffer(buf, completionCallbackType: .dataPlayedBack) { [weak self, weak t] _ in
@@ -159,7 +159,7 @@ final class Engine {
         }
     }
 
-    private func played(_ t: Track, frames: Int64) {
+    private func played(_ t: Feed, frames: Int64) {
         t.playedFrames += frames
         // Only the head track counts as heard. It finishes once everything fed has played.
         while let head = tracks.first, head.feedDone, head.playedFrames >= head.fedFrames {
@@ -182,7 +182,7 @@ final class Engine {
 }
 
 /// One source being fed into the player node.
-final class Track {
+final class Feed {
     let id: Int
     let spec: Spec
     let source: PCMSource
@@ -232,7 +232,7 @@ final class Track {
     /// Next block in the output format, or `nil` at end of source or window.
     func nextBuffer() -> AVAudioPCMBuffer? {
         if let w = windowSeconds, Double(fedFrames) / Engine.outputRate >= w { return nil }
-        guard let raw = source.read(frames: Track.chunk) else { return nil }
+        guard let raw = source.read(frames: Feed.chunk) else { return nil }
         return convert(raw)
     }
 

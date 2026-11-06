@@ -36,3 +36,15 @@ func runAudioSmoke(paths: [String]) -> Never {
     RunLoop.main.run()
     exit(1)
 }
+
+/// Prints what the library sees in a folder. Used to check tags and durations.
+func runLibraryScan(dir: String) -> Never {
+    let tracks = folderTracks(URL(fileURLWithPath: dir))
+    for t in tracks {
+        t.info = scanInfo(t.url)
+        let d = t.duration.map { clock($0) } ?? "--:--"
+        print("\(d)  \(t.typeText)  \(t.display)  |  \(t.infoText)  |  \(t.info?.format ?? t.info?.decoder ?? "")")
+    }
+    print("\(tracks.count) tracks, \(subfolders(URL(fileURLWithPath: dir)).count) subfolders")
+    exit(0)
+}
