@@ -11,6 +11,10 @@ let audioExtensions: Set<String> = [
 /// Container types Apple's stack does not decode here. Listed but not playable.
 let unsupportedExtensions: Set<String> = ["mkv", "mka", "webm"]
 
+/// Settings read by list text. Set from the settings window.
+var displayUsesTags = true
+var infoModeSetting: InfoMode = .artistTitle
+
 struct Tags: Equatable {
     var title: String?
     var artist: String?
@@ -85,8 +89,9 @@ final class Track {
     var isCue: Bool { cue != nil }
 
     /// Tag title when present, else file name.
+    /// Tag title when tag titles are on and present, else file name.
     var display: String {
-        if let t = info?.tags.title, !t.isEmpty { return t }
+        if displayUsesTags, let t = info?.tags.title, !t.isEmpty { return t }
         return name
     }
 
@@ -104,10 +109,22 @@ final class Track {
 
     var typeText: String { isCue ? "CUE" : ext.uppercased() }
 
+    /// Info column text, as chosen in settings.
     var infoText: String {
         guard let i = info else { return "" }
-        if !i.tags.isEmpty, let at = i.tags.artistTitle { return at }
-        return i.summary
+        let bitrate = i.bitrate.map { "\($0) kbps" } ?? ""
+        switch infoModeSetting {
+        case .bitrate: return i.summary
+        case .artistTitle:
+            if !i.tags.isEmpty, let at = i.tags.artistTitle { return at }
+            return i.summary
+        case .trackNo: return i.tags.track ?? ""
+        case .length: return duration.map { clock($0) } ?? ""
+        case .bitrateFmt: return [bitrate, i.format ?? i.decoder].filter { !$0.isEmpty }.joined(separator: ", ")
+        case .bitrateTag: return [bitrate, i.tags.title ?? ""].filter { !$0.isEmpty }.joined(separator: ", ")
+        case .yearAlbum: return [i.tags.year ?? "", i.tags.album ?? ""].filter { !$0.isEmpty }.joined(separator: " ")
+        case .notes: return i.tags.comment ?? ""
+        }
     }
 
     /// What the engine plays for this row.

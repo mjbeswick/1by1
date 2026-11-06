@@ -3,7 +3,7 @@ import AppKit
 /// Track list in an NSTableView. Rows come from the player's current folder.
 final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDelegate {
     let view: NSScrollView
-    private let table = NSTableView()
+    let table = NSTableView()
     private var rows: [Track] = []
     private var heardRow: Int?
     var onActivate: ((Int) -> Void)?
@@ -123,5 +123,16 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
 
     func tableViewSelectionDidChange(_ notification: Notification) {
         onSelectionChange?()
+    }
+}
+
+extension TrackTableController {
+    /// Grid, scrollbars, row height and the info column, as set in settings.
+    func applyStyle(grid: Bool, hideScrollbars: Bool, rowHeight: CGFloat, showInfo: Bool) {
+        table.gridStyleMask = grid ? [.solidVerticalGridLineMask, .solidHorizontalGridLineMask] : []
+        table.rowHeight = rowHeight
+        view.hasVerticalScroller = !hideScrollbars
+        view.hasHorizontalScroller = !hideScrollbars
+        table.tableColumns.first { $0.identifier.rawValue == "info" }?.isHidden = !showInfo
     }
 }

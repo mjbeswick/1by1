@@ -16,6 +16,10 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     var seeking = false
     var infoWindows: [TrackInfoWindow] = []
     var logWindows: [NSWindowController] = []
+    var listsSplit: NSSplitView?
+    var coverContainer: NSView?
+    var coverImage: NSImageView?
+    var autosaveTimer: Timer?
     var tickCount = 0
     var remote: RemoteServer?
     var bigTitle: BigTitleWindow?
@@ -49,6 +53,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         buildToolbar(for: win)
         wirePlayer()
         if player.settings.httpEnabled { toggleRemote() }
+        applySettings()
         ticker = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
             self?.tick()
         }
@@ -64,7 +69,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         table.onSelectionChange = { [weak self] in self?.updateStatus() }
 
         let treeVC = NSViewController()
-        treeVC.view = tree.view
+        treeVC.view = makeSidebar()
         let contentVC = NSViewController()
         contentVC.view = makeContentView()
 
@@ -117,11 +122,9 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
 
         playlistTable.onActivate = { [weak self] row in self?.player.playFromPlaylist(row: row) }
         let lists = NSSplitView()
-        lists.isVertical = false
         lists.dividerStyle = .thin
-        lists.addArrangedSubview(table.view)
-        lists.addArrangedSubview(playlistTable.view)
-        lists.setHoldingPriority(NSLayoutConstraint.Priority(250), forSubviewAt: 0)
+        listsSplit = lists
+        rebuildLists()
         lists.translatesAutoresizingMaskIntoConstraints = false
         for v in [lists, transport, separator, statusLabel] as [NSView] {
             v.translatesAutoresizingMaskIntoConstraints = false
@@ -250,6 +253,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
             }
         }
         window?.title = "1by1 - \(url.lastPathComponent)"
+        updateCover()
         refresh()
     }
 
@@ -506,7 +510,7 @@ extension MainWindowController {
             self.remote = nil
             player.settings.httpEnabled = false
         } else {
-            let r = RemoteServer { [weak self] path in self?.runRemote(path) }
+            let r = RemoteServer(port: remotePort) { [weak self] path in self?.runRemote(path) }
             do {
                 try r.start()
                 remote = r
@@ -534,6 +538,7 @@ extension MainWindowController {
     @objc func showSettings() {
         let w = settingsWindow ?? SettingsWindow(player: player)
         w.onRemoteToggle = { [weak self] on in self?.setRemote(on) }
+        w.onApply = { [weak self] in self?.applySettings() }
         settingsWindow = w
         w.showWindow(nil)
     }

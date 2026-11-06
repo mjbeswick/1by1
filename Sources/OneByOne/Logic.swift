@@ -1,7 +1,7 @@
 import Foundation
 
 /// Repeat behaviour of the play queue.
-enum Repeat: String, Codable {
+enum Repeat: String, Codable, CaseIterable {
     case off, all, one
 
     var next: Repeat {
@@ -66,11 +66,15 @@ func shuffled<T>(_ items: [T], seed: UInt64) -> [T] {
 }
 
 /// `m:ss` for short values, `h:mm:ss` past an hour.
+/// Minutes as `m:ss` (true) or `m'ss` (false) below an hour. Set from settings.
+var clockColonMinutes = true
+
 func clock(_ seconds: Double) -> String {
     let s = Int(max(0, seconds))
     if s >= 3600 {
         return String(format: "%d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60)
     }
+    if !clockColonMinutes { return String(format: "%d'%02d", s / 60, s % 60) }
     return String(format: "%d:%02d", s / 60, s % 60)
 }
 
