@@ -44,6 +44,13 @@ final class FolderTreeController: NSObject, NSOutlineViewDataSource, NSOutlineVi
         view.drawsBackground = false
     }
 
+    /// Indent and row height, from the window style settings.
+    func applyStyle(rowSpacing: Bool, bigger: Bool, lines: Bool) {
+        outline.indentationPerLevel = rowSpacing ? 18 : 12
+        outline.rowHeight = bigger ? 24 : 18
+        outline.gridStyleMask = lines ? [.solidHorizontalGridLineMask] : []
+    }
+
     func setRoots(_ urls: [URL]) {
         roots = urls
         rootNodes = urls.map(FolderNode.init(url:))

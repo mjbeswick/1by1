@@ -32,6 +32,12 @@ extension MainWindowController {
         case (124, [.shift]): stepFolder(1); return true
         case (126, [.control]): player.setVolume(s.volume + (s.fineVolume ? 0.01 : 0.05)); return true
         case (125, [.control]): player.setVolume(s.volume - (s.fineVolume ? 0.01 : 0.05)); return true
+        case (126, [.option]) where window?.firstResponder === playlistTable.table:
+            if let rows = playlistTable.selectedRowsIfAny { player.movePlaylistRows(rows, by: -1) }
+            return true
+        case (125, [.option]) where window?.firstResponder === playlistTable.table:
+            if let rows = playlistTable.selectedRowsIfAny { player.movePlaylistRows(rows, by: 1) }
+            return true
         case (51, []) where window?.firstResponder === playlistTable.table:       // Delete in playlist
             removeFromPlaylist()
             return true

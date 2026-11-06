@@ -28,6 +28,8 @@ final class PlayerController {
 
     /// Set by Quit After Track. The window quits when the next track would start.
     var quitAfterTrack = false
+    /// Shuffle order for the current list. Rebuilt when the list changes or runs out.
+    var shuffleOrder: [Int] = []
     /// The app should quit now (quit-after-track fired).
     var onQuitRequested: (() -> Void)?
 
@@ -320,13 +322,38 @@ final class PlayerController {
         return nil
     }
 
+    /// Shuffle plays a random permutation of the list once through, then starts a new one.
     private func pickNext(from cur: Int) -> Int? {
-        if shuffle && repeatMode != .one && tracks.count > 1 {
-            var r = Int.random(in: 0..<tracks.count)
-            if r == cur { r = (r + 1) % tracks.count }
-            return r
+        guard shuffle, repeatMode != .one, tracks.count > 1 else {
+            return nextIndex(count: tracks.count, cur: cur, repeat: repeatMode)
         }
-        return nextIndex(count: tracks.count, cur: cur, repeat: repeatMode)
+        if shuffleOrder.count != tracks.count || !shuffleOrder.contains(cur) {
+            shuffleOrder = Array(tracks.indices).shuffled()
+            if let i = shuffleOrder.firstIndex(of: cur), i != 0 {
+                shuffleOrder.swapAt(0, i)
+            }
+        }
+        guard let i = shuffleOrder.firstIndex(of: cur) else { return nil }
+        if i + 1 < shuffleOrder.count { return shuffleOrder[i + 1] }
+        if repeatMode == .all {
+            shuffleOrder = Array(tracks.indices).shuffled()
+            return shuffleOrder.first(where: { $0 != cur }) ?? shuffleOrder.first
+        }
+        return nil
+    }
+
+    /// Move the selected playlist rows up or down by one.
+    func movePlaylistRows(_ rows: IndexSet, by delta: Int) {
+        guard !rows.isEmpty else { return }
+        var list = playlist
+        let picked = rows.map { list[$0] }
+        let remaining = list.enumerated().filter { !rows.contains($0.offset) }.map { $0.element }
+        var target = rows.map { $0 + delta }.min() ?? 0
+        target = max(0, min(target, remaining.count))
+        list = remaining
+        list.insert(contentsOf: picked, at: target)
+        playlist = list
+        onChange?()
     }
 
     // MARK: - Remembered state

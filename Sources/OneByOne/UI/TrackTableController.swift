@@ -10,6 +10,8 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
     var onSelectionChange: (() -> Void)?
     /// Header click: column key and direction.
     var onSort: ((SortKey, Bool) -> Void)?
+    /// Size column shows length too unless this is set.
+    var sizeWithoutLength = false
 
     init(autosaveName: String) {
         view = NSScrollView()
@@ -94,12 +96,15 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard let col = tableColumn, rows.indices.contains(row) else { return nil }
         let t = rows[row]
-        let text: String
+        var text: String
         var alignRight = false
         switch col.identifier.rawValue {
         case "name": text = t.display
         case "length": text = t.duration.map { clock($0) } ?? ""; alignRight = true
-        case "size": text = sizeText(t.size); alignRight = true
+        case "size":
+            text = sizeText(t.size)
+            if !sizeWithoutLength, let d = t.duration { text += "  " + clock(d) }
+            alignRight = true
         case "type": text = t.typeText
         case "info": text = t.infoText
         default: text = ""
@@ -148,5 +153,6 @@ extension TrackTableController {
         view.hasVerticalScroller = !hideScrollbars
         view.hasHorizontalScroller = !hideScrollbars
         table.tableColumns.first { $0.identifier.rawValue == "info" }?.isHidden = !showInfo
+        table.reloadData()
     }
 }

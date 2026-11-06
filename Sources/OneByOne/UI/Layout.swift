@@ -76,6 +76,7 @@ extension MainWindowController {
         infoModeSetting = s.infoMode
         clockColonMinutes = s.colonMinutes
         for t in [table, playlistTable] {
+            t.sizeWithoutLength = s.noLengthInSize
             t.applyStyle(grid: s.listGrid, hideScrollbars: s.hideScrollbars,
                          rowHeight: s.biggerTree ? 22 : 18, showInfo: s.extraInfoCol)
         }
@@ -83,6 +84,7 @@ extension MainWindowController {
             item.isCollapsed = !s.showTree
         }
         volumeSlider.controlSize = s.largerSliders ? .regular : .small
+        tree.applyStyle(rowSpacing: s.treeSpacing, bigger: s.biggerTree, lines: s.treeLines)
         rebuildLists()
         updateCover()
         setHistoryMenuHidden(!s.historyMenus)
