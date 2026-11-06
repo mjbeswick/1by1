@@ -6,7 +6,7 @@ Native macOS app in Swift and AppKit. Folder is the queue. Drop the Milkdrop vis
 
 ## Status
 
-Phases 1 to 5 checklist is done as listed below. Items under Deferred are not done.
+Core port done. Settings pages and behaviors ported. Remaining gaps listed under Not yet applied.
 
 ## Done
 - [x] Package.swift, system library module map, swift build green
@@ -36,21 +36,25 @@ Phases 1 to 5 checklist is done as listed below. Items under Deferred are not do
 - [x] Rust code deleted
 - [x] README rewritten for macOS
 
-## Deferred (not done)
-- [ ] Settings: only remote, tree, shuffle, repeat. Rust build had eleven pages (themes, fonts, hotkeys, list styles, decoder options, logging, webserver options, and more).
-- [ ] Find files (F3) and Explore folder (Ctrl+X) dialogs.
-- [ ] Intro scan.
-- [ ] Track log and external launchers.
-- [ ] Playlist: remove rows, reorder. Rows only clear as a whole.
-- [ ] Shuffle reorders nothing: it picks random next rows.
-- [ ] Compact view.
-- [ ] Resume: position saved per folder but not restored on launch.
-- [ ] Column sorting in the track list.
-- [ ] Cover art pane.
-- [ ] Scan-on-launch and folder auto-refresh every 3 s.
-- [ ] Keyboard shortcut parity with the Rust build (only the common ones are bound).
-- [ ] MKV, WebM, Opus-in-CAF: unsupported by AVFoundation, no library chosen.
-- [ ] Settings migration from settings.toml, bookmarks, resume points: not imported.
+## Not yet applied
+
+Stored in settings and shown in the settings window, but no effect yet:
+- Folders in list (show subfolder rows in the track list).
+- Scroll-wheel options: volume, folder tree, lists.
+- Tab moves between toolbar and lists.
+- Tooltips toggle (toolbar tooltips always on).
+- Tree style "explorer", no label edit, file info menu.
+- Skip lists in search, auto search directories, continue in focused list.
+- Always scan tags (folders are scanned in the background anyway).
+- Proxy (the app makes no outbound requests, so this has no use yet).
+- Themes: the Rust build's named themes are not in settings. The app follows the system light and dark appearance.
+- Ctrl-Q quit shortcut (Command-Q quits).
+
+Known limits:
+- Ogg Vorbis verified only with a file encoded by libvorbisenc here.
+- Layout verified by screenshot at default size. Resizing and the compact view are not checked.
+- MKV, WebM and Opus-in-CAF are unsupported. FFmpeg would add about 40 MB.
+- Settings from the Rust build (settings.toml, bookmarks, resume points) are not imported.
 
 ## Decisions
 

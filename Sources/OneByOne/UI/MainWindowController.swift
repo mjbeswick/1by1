@@ -97,6 +97,9 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         split.addSplitViewItem(content)
         splitController = split
         win.contentViewController = split
+        // Assigning the controller resizes the window to its fitting size. Restore the default.
+        win.setContentSize(NSSize(width: 1100, height: 680))
+        win.center()
     }
 
     private func makeContentView() -> NSView {
