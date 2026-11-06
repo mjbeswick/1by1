@@ -39,14 +39,13 @@ Core port done. Settings pages and behaviors ported. Remaining gaps listed under
 ## Not yet applied
 
 - Removed from the settings window because nothing reads them: Proxy (the app makes no outbound requests), No label edit, File info menu. Their values stay in the settings file.
-- Not packaged for other machines: no Developer ID signing or notarization. The bundle runs only where its Homebrew and FFmpeg libraries were bundled from.
-- Opus-in-CAF: untested, no sample file can be made here.
+- Not notarized: no Developer ID certificate, so Gatekeeper rejects the app on other Macs. The bundle loads only its own libraries (checked with DYLD_PRINT_LIBRARIES), so it is relocatable. Size is 38 MB, mostly FFmpeg codecs pulled in by the Homebrew build.
 
 ## Verification
 
 - `--selftest`, `--smoke` (AVFoundation, Vorbis, OpenMPT, FFmpeg formats), `--scan`, `--import-check`.
 - Window at default size, resized, and compact view checked by screenshot.
-- Ogg Vorbis checked with a file from libvorbisenc. Opus-in-CAF: no sample file, untested.
+- Ogg Vorbis checked with a file from libvorbisenc. Opus-in-CAF checked with a CAF file built from Ogg Opus packets: AVFoundation reads and plays it.
 - Rust settings import checked against the real `~/.config/1by1/settings.toml`.
 
 ## Decisions
