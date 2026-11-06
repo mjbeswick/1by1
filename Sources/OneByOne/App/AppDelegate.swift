@@ -5,7 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var window: MainWindowController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let settings = Settings.load()
+        let settings = RustSettingsImport.importIfFirstRun() ?? Settings.load()
         // One instance: a second launch hands over to the running copy and quits.
         if settings.oneInstance, let id = Bundle.main.bundleIdentifier,
            NSRunningApplication.runningApplications(withBundleIdentifier: id).count > 1 {
