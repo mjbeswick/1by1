@@ -81,6 +81,23 @@ enum SortKey: String, Codable, CaseIterable {
     }
 }
 
+/// Colour themes from the Rust build. Each sets the window appearance and list background.
+enum Theme: String, Codable, CaseIterable, Equatable {
+    case current, dark, anthracite, paper, grey, deepBlue, blue, red
+    var label: String {
+        switch self {
+        case .current: return "Current"
+        case .dark: return "Dark mode"
+        case .anthracite: return "Anthracite"
+        case .paper: return "Paper"
+        case .grey: return "Grey"
+        case .deepBlue: return "Deep blue"
+        case .blue: return "Blue"
+        case .red: return "Red"
+        }
+    }
+}
+
 /// Persisted state. JSON in Application Support. Missing keys take the defaults below,
 /// so an older file keeps the values it has.
 struct Settings: Codable {
@@ -144,6 +161,7 @@ struct Settings: Codable {
     var listGrid = false
     var fullRow = true
     var treeLines = true
+    var theme: Theme = .current
     var treeSpacing = false
     var treeStyleExplorer = false
     var dimInactiveList: Int = 30
@@ -251,7 +269,7 @@ struct Settings: Codable {
         get("noLengthInSize", &noLengthInSize); get("alwaysScan", &alwaysScan)
         get("hideScrollbars", &hideScrollbars)
         get("listGrid", &listGrid); get("fullRow", &fullRow); get("treeLines", &treeLines)
-        get("treeSpacing", &treeSpacing); get("treeStyleExplorer", &treeStyleExplorer)
+        get("theme", &theme); get("treeSpacing", &treeSpacing); get("treeStyleExplorer", &treeStyleExplorer)
         get("dimInactiveList", &dimInactiveList); get("biggerTree", &biggerTree)
         get("titleMode", &titleMode); get("tagTitles", &tagTitles)
         get("upcomingInTitle", &upcomingInTitle); get("colonMinutes", &colonMinutes)

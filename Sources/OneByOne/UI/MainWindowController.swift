@@ -231,7 +231,9 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         player.onChange = { [weak self] in self?.refresh() }
         player.onMessage = { [weak self] msg in self?.statusLabel.stringValue = msg }
         player.onTrackHeard = { [weak self] row in
-            guard let self, self.player.settings.goHomeOnChange, !self.player.usesPlaylist else { return }
+            guard let self, !self.player.usesPlaylist else { return }
+            let focusedHere = self.window?.firstResponder === self.table.table
+            guard self.player.settings.goHomeOnChange || (self.player.settings.continueFocused && focusedHere) else { return }
             self.table.select(row: row)
             self.table.scrollToRow(row)
         }
@@ -256,8 +258,13 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     }
 
     /// Load a folder: list it at once, then fill in tags on a background queue.
-    func openFolder(_ url: URL) {
-        let rows = folderRows(url, withFolders: player.settings.foldersInList)
+    func openFolder(_ requested: URL) {
+        var url = requested
+        var rows = folderRows(url, withFolders: player.settings.foldersInList)
+        if rows.isEmpty, player.settings.autoSearchDirs, let found = firstFolderWithAudio(requested, depth: 4) {
+            url = found
+            rows = folderRows(found, withFolders: player.settings.foldersInList)
+        }
         player.setFolder(url, tracks: rows)
         recordHistory(url)
         table.setTracks(rows)
@@ -265,8 +272,9 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
             table.select(row: idx)
             table.scrollToRow(idx)
         }
+        let always = player.settings.alwaysScan
         DispatchQueue.global(qos: .userInitiated).async {
-            for t in rows where t.info == nil { t.info = scanInfo(t.url) }
+            for t in rows where t.info == nil { t.info = cachedInfo(t, reuse: !always) }
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.player.folder == url else { return }
                 self.table.reload()
@@ -394,9 +402,14 @@ extension MainWindowController {
     /// Select the first row whose name or tag title contains `text`.
     @objc func searchChanged(_ text: String) {
         guard !text.isEmpty else { return }
-        if let row = player.tracks.firstIndex(where: { containsCI($0.display, text) || containsCI($0.name, text) }) {
+        let matches: (Track) -> Bool = { containsCI($0.display, text) || containsCI($0.name, text) }
+        if let row = player.folderTracks.firstIndex(where: matches) {
             table.select(row: row)
+            return
         }
+        // Skip Lists in Search off: a miss in the folder list continues into the playlist.
+        guard !player.settings.skipListsInSearch, let row = player.playlist.firstIndex(where: matches) else { return }
+        playlistTable.select(row: row)
     }
 
     /// Ask for a 1-based row number and select it.

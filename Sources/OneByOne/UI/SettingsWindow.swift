@@ -10,6 +10,7 @@ extension BigLayout: Labeled {}
 extension TitleMode: Labeled {}
 extension InfoMode: Labeled {}
 extension SortKey: Labeled {}
+extension Theme: Labeled {}
 
 /// Preferences in eleven pages. Every control writes its field and calls `onApply`.
 final class SettingsWindow: NSWindowController, NSTableViewDataSource, NSTableViewDelegate {
@@ -241,6 +242,7 @@ final class SettingsWindow: NSWindowController, NSTableViewDataSource, NSTableVi
                 check("Escape quits", \.escQuit),
             ]),
             page([
+                choice("Theme", \.theme),
                 check("Grid lines in list", \.listGrid),
                 check("Full-row selection", \.fullRow),
                 check("Tree lines", \.treeLines),

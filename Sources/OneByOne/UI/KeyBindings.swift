@@ -9,7 +9,13 @@ extension MainWindowController {
             return self.handleKey(event) ? nil : event
         }
         wheelMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
-            guard let self, self.player.settings.wheelVolume else { return event }
+            guard let self else { return event }
+            let s = self.player.settings
+            if event.window === self.window {
+                if let tree = self.tree.view as NSView?, self.hit(tree, event), !s.wheelTree { return nil }
+                if self.hit(self.table.view, event) || self.hit(self.playlistTable.view, event), !s.wheelLists { return nil }
+            }
+            guard s.wheelVolume else { return event }
             // Wheel over the transport line changes volume. Elsewhere it scrolls.
             guard let content = self.splitController?.view, let win = self.window,
                   event.window === win else { return event }
@@ -21,6 +27,12 @@ extension MainWindowController {
         }
     }
 
+    /// True when the event lands inside `view`.
+    func hit(_ view: NSView, _ event: NSEvent) -> Bool {
+        let p = view.convert(event.locationInWindow, from: nil)
+        return !view.isHidden && view.bounds.contains(p)
+    }
+
     /// Returns true when the key was handled.
     private func handleKey(_ e: NSEvent) -> Bool {
         // Text fields and the search box keep their keys.
@@ -30,6 +42,14 @@ extension MainWindowController {
         switch (e.keyCode, mods) {
         case (12, [.control]):                                                   // Ctrl-Q quits
             NSApp.terminate(nil)
+            return true
+        case (48, []) where !s.tabToolbar:                                       // Tab cycles lists only
+            let focus = window?.firstResponder
+            if focus === table.table, player.settings.playlistOpen {
+                window?.makeFirstResponder(playlistTable.table)
+            } else {
+                window?.makeFirstResponder(table.table)
+            }
             return true
         case (53, []) where s.escQuit:                                           // Escape quits when set
             NSApp.terminate(nil)

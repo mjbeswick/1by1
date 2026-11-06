@@ -87,6 +87,7 @@ extension MainWindowController {
         for item in window?.toolbar?.items ?? [] { item.toolTip = s.showTooltips ? item.label : nil }
         tree.applyStyle(rowSpacing: s.treeSpacing, bigger: s.biggerTree, lines: s.treeLines)
         tree.setExplorerStyle(s.treeStyleExplorer)
+        applyTheme()
         rebuildLists()
         updateCover()
         setHistoryMenuHidden(!s.historyMenus)

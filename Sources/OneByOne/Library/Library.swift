@@ -383,3 +383,38 @@ func decoderName(_ url: URL) -> String {
     default: return "Audio"
     }
 }
+
+// MARK: - Tag cache
+
+private var infoCache: [String: (modified: Date?, info: AudioInfo)] = [:]
+private let infoCacheLock = NSLock()
+
+/// Tags for a row. With `reuse`, a file unchanged since its last scan keeps the cached tags.
+func cachedInfo(_ t: Track, reuse: Bool) -> AudioInfo? {
+    if reuse {
+        infoCacheLock.lock()
+        let hit = infoCache[t.url.path]
+        infoCacheLock.unlock()
+        if let hit, hit.modified == t.modified { return hit.info }
+    }
+    guard let info = scanInfo(t.url) else { return nil }
+    infoCacheLock.lock()
+    infoCache[t.url.path] = (t.modified, info)
+    infoCacheLock.unlock()
+    return info
+}
+
+/// Breadth-first search below `dir` for a folder with audio files, up to `depth` levels.
+func firstFolderWithAudio(_ dir: URL, depth: Int) -> URL? {
+    var level = [dir]
+    for _ in 0...depth {
+        var next: [URL] = []
+        for d in level {
+            if !folderTracks(d).isEmpty { return d }
+            next += subfolders(d)
+        }
+        level = next
+        if level.isEmpty { break }
+    }
+    return nil
+}
