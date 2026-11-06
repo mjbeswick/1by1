@@ -3,18 +3,20 @@ import AppKit
 /// Main window: folder tree on the left, track list and transport on the right.
 final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindowDelegate {
     let player: PlayerController
-    private let tree = FolderTreeController()
-    private let table = TrackTableController(autosaveName: "TrackTable")
-    private let playlistTable = TrackTableController(autosaveName: "PlaylistTable")
-    private let seekSlider = NSSlider(value: 0, minValue: 0, maxValue: 1, target: nil, action: nil)
-    private let timeLabel = NSTextField(labelWithString: "0:00 / 0:00")
-    private let volumeSlider = NSSlider(value: 1, minValue: 0, maxValue: 1, target: nil, action: nil)
-    private let statusLabel = NSTextField(labelWithString: "")
-    private var splitController: NSSplitViewController?
-    private var ticker: Timer?
+    let tree = FolderTreeController()
+    let table = TrackTableController(autosaveName: "TrackTable")
+    let playlistTable = TrackTableController(autosaveName: "PlaylistTable")
+    let seekSlider = NSSlider(value: 0, minValue: 0, maxValue: 1, target: nil, action: nil)
+    let timeLabel = NSTextField(labelWithString: "0:00 / 0:00")
+    let volumeSlider = NSSlider(value: 1, minValue: 0, maxValue: 1, target: nil, action: nil)
+    let statusLabel = NSTextField(labelWithString: "")
+    var splitController: NSSplitViewController?
+    var ticker: Timer?
     private weak var playPauseItem: NSToolbarItem?
-    private var seeking = false
-    private var infoWindows: [TrackInfoWindow] = []
+    var seeking = false
+    var infoWindows: [TrackInfoWindow] = []
+    var logWindows: [NSWindowController] = []
+    var tickCount = 0
     var remote: RemoteServer?
     var bigTitle: BigTitleWindow?
     var settingsWindow: SettingsWindow?
@@ -71,7 +73,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         sidebar.minimumThickness = 160
         sidebar.maximumThickness = 420
         sidebar.canCollapse = true
-        sidebar.isCollapsed = !player.settings.treeVisible
+        sidebar.isCollapsed = !player.settings.showTree
         let content = NSSplitViewItem(viewController: contentVC)
         content.minimumThickness = 320
         split.addSplitViewItem(sidebar)
@@ -204,13 +206,20 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     private func wirePlayer() {
         player.onChange = { [weak self] in self?.refresh() }
         player.onMessage = { [weak self] msg in self?.statusLabel.stringValue = msg }
+        player.onTrackHeard = { [weak self] row in
+            guard let self, self.player.settings.goHomeOnChange, !self.player.usesPlaylist else { return }
+            self.table.select(row: row)
+            self.table.scrollToRow(row)
+        }
+        player.onFolderEnd = { [weak self] in self?.folderEnded() }
         tree.setRoots(initialRoots())
-        if let last = player.settings.lastFolder.map(URL.init(fileURLWithPath:)),
-           FileManager.default.fileExists(atPath: last.path) {
+        let last = player.settings.lastFolder.map(URL.init(fileURLWithPath:))
+        if let last, !player.settings.startInBase, FileManager.default.fileExists(atPath: last.path) {
             openFolder(last)
             tree.select(last)
         } else if let first = tree.roots.first {
             openFolder(first)
+            tree.select(first)
         }
     }
 
@@ -228,9 +237,9 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         player.setFolder(url, tracks: rows)
         recordHistory(url)
         table.setTracks(rows)
-        if let resume = player.settings.folderResume[url.path],
-           let idx = rows.firstIndex(where: { $0.url.path == resume.path }) {
+        if let idx = player.resumeRow {
             table.select(row: idx)
+            table.scrollToRow(idx)
         }
         DispatchQueue.global(qos: .userInitiated).async {
             for t in rows where t.info == nil { t.info = scanInfo(t.url) }
@@ -278,7 +287,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     @objc func toggleTree() {
         guard let item = splitController?.splitViewItems.first else { return }
         item.animator().isCollapsed.toggle()
-        player.settings.treeVisible = item.isCollapsed == false
+        player.settings.showTree = item.isCollapsed == false
         player.save()
     }
 
@@ -313,6 +322,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     }
 
     private func tick() {
+        periodicWork()
         guard let d = player.duration, d > 0 else {
             timeLabel.stringValue = clock(player.position) + " / " + (player.heard == nil ? "0:00" : "--:--")
             seekSlider.doubleValue = 0
@@ -442,17 +452,17 @@ extension MainWindowController {
     }
 
     @objc func openHistory(_ sender: NSMenuItem) {
-        let url = URL(fileURLWithPath: player.settings.history[sender.tag])
+        let url = URL(fileURLWithPath: player.settings.recentDirs[sender.tag])
         openFolder(url)
         tree.select(url)
     }
 
-    /// Called from openFolder: remember the folder at the top of history.
+    /// Called from openFolder: remember the folder at the top of recentDirs.
     func recordHistory(_ folder: URL) {
         var s = player.settings
-        s.history.removeAll { $0 == folder.path }
-        s.history.insert(folder.path, at: 0)
-        s.history = Array(s.history.prefix(BookmarksMenu.maxHistory))
+        s.recentDirs.removeAll { $0 == folder.path }
+        s.recentDirs.insert(folder.path, at: 0)
+        s.recentDirs = Array(s.recentDirs.prefix(BookmarksMenu.maxHistory))
         player.settings = s
         player.save()
     }
@@ -532,5 +542,19 @@ extension MainWindowController {
     func setRemote(_ on: Bool) {
         if on, remote == nil { toggleRemote() }
         if !on, remote != nil { toggleRemote() }
+    }
+}
+
+extension MainWindowController {
+    /// Folder reached its end with repeat off: reload it or move to the next folder.
+    func folderEnded() {
+        let s = player.settings
+        if s.reloadAtEnd, let folder = player.folder {
+            openFolder(folder)
+            if !player.tracks.isEmpty { player.playFolder(row: 0) }
+        } else if s.switchToFolderAtEnd {
+            stepFolder(1)
+            if !player.tracks.isEmpty { player.playFolder(row: 0) }
+        }
     }
 }

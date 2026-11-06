@@ -31,6 +31,18 @@ enum MainMenu {
         play.addItem(withTitle: "Add to Playlist", action: #selector(MainWindowController.enqueueSelected), keyEquivalent: "\r")
             .keyEquivalentModifierMask = [.control]
         play.addItem(withTitle: "Clear Playlist", action: #selector(MainWindowController.clearPlaylist), keyEquivalent: "")
+        play.addItem(.separator())
+        let intro = play.addItem(withTitle: "Intro Scan", action: #selector(MainWindowController.startIntroScan), keyEquivalent: "n")
+        intro.keyEquivalentModifierMask = [.control]
+        let explore = play.addItem(withTitle: "Explore Folder", action: #selector(MainWindowController.exploreFolder), keyEquivalent: "x")
+        explore.keyEquivalentModifierMask = [.control]
+        for i in 0..<3 {
+            let item = play.addItem(withTitle: "External \(i + 1)", action: #selector(MainWindowController.runExternal(_:)), keyEquivalent: "")
+            item.tag = i
+        }
+        play.addItem(.separator())
+        let log = play.addItem(withTitle: "Track Log", action: #selector(MainWindowController.showTrackLog), keyEquivalent: "l")
+        log.keyEquivalentModifierMask = [.command, .shift]
         play.addItem(withTitle: "Repeat", action: #selector(MainWindowController.cycleRepeat), keyEquivalent: "r")
             .keyEquivalentModifierMask = [.control]
         play.addItem(withTitle: "Shuffle", action: #selector(MainWindowController.toggleShuffle), keyEquivalent: "p")
@@ -70,6 +82,13 @@ enum MainMenu {
 }
 
 private extension NSMenu {
+    @discardableResult
+    func addItem(withTitle title: String, action: Selector?, keyEquivalent: String) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: keyEquivalent)
+        addItem(item)
+        return item
+    }
+
     func addItem(submenu: NSMenu, title: String) {
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.submenu = submenu

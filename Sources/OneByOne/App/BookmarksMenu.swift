@@ -29,14 +29,14 @@ final class BookmarksMenu: NSObject, NSMenuDelegate {
                 menu.addItem(item)
             }
         } else {
-            for (i, path) in s.history.prefix(Self.maxHistory).enumerated() {
+            for (i, path) in s.recentDirs.prefix(s.historyEntries).enumerated() {
                 let item = NSMenuItem(title: URL(fileURLWithPath: path).lastPathComponent,
                                       action: #selector(MainWindowController.openHistory(_:)), keyEquivalent: "")
                 item.tag = i
                 item.toolTip = path
                 menu.addItem(item)
             }
-            if s.history.isEmpty {
+            if s.recentDirs.isEmpty {
                 menu.addItem(withTitle: "No Recent Folders", action: nil, keyEquivalent: "").isEnabled = false
             }
         }

@@ -40,14 +40,14 @@ final class SettingsWindow: NSWindowController {
     private func load() {
         let s = player.settings
         remoteBox.state = s.httpEnabled ? .on : .off
-        treeBox.state = s.treeVisible ? .on : .off
+        treeBox.state = s.showTree ? .on : .off
         shuffleBox.state = player.shuffle ? .on : .off
         repeatPop.selectItem(at: [Repeat.off, .all, .one].firstIndex(of: player.repeatMode) ?? 0)
     }
 
     @objc private func remoteChanged() { onRemoteToggle?(remoteBox.state == .on) }
     @objc private func treeChanged() {
-        player.settings.treeVisible = treeBox.state == .on
+        player.settings.showTree = treeBox.state == .on
         player.save()
     }
     @objc private func shuffleChanged() { player.shuffle = shuffleBox.state == .on }

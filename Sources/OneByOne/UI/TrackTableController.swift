@@ -54,6 +54,10 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         table.reloadData()
     }
 
+    func scrollToRow(_ row: Int) {
+        table.scrollRowToVisible(row)
+    }
+
     func select(row: Int) {
         table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
         table.scrollRowToVisible(row)
