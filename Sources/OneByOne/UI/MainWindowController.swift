@@ -222,6 +222,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     func openFolder(_ url: URL) {
         let rows = folderTracks(url)
         player.setFolder(url, tracks: rows)
+        recordHistory(url)
         table.setTracks(rows)
         if let resume = player.settings.folderResume[url.path],
            let idx = rows.firstIndex(where: { $0.url.path == resume.path }) {
@@ -400,5 +401,54 @@ extension MainWindowController {
 
     @objc func clearPlaylist() {
         player.clearPlaylist()
+    }
+}
+
+// MARK: - Bookmarks and history
+
+extension MainWindowController {
+    /// Bookmark the current folder, or the heard track when one plays.
+    @objc func addBookmark() {
+        var s = player.settings
+        if let t = player.heardTrack, !t.isCue {
+            s.bookmarks.append(Settings.Bookmark(title: t.display, path: t.url.path, isFolder: false))
+        } else if let folder = player.folder {
+            s.bookmarks.append(Settings.Bookmark(title: folder.lastPathComponent, path: folder.path, isFolder: true))
+        }
+        s.bookmarks = Array(s.bookmarks.suffix(BookmarksMenu.maxBookmarks))
+        player.settings = s
+        player.save()
+    }
+
+    @objc func openBookmark(_ sender: NSMenuItem) {
+        let bm = player.settings.bookmarks[sender.tag]
+        let url = URL(fileURLWithPath: bm.path)
+        if bm.isFolder {
+            openFolder(url)
+            tree.select(url)
+        } else {
+            let dir = url.deletingLastPathComponent()
+            openFolder(dir)
+            if let row = player.tracks.firstIndex(where: { $0.url == url }) {
+                table.select(row: row)
+                player.playFolder(row: row)
+            }
+        }
+    }
+
+    @objc func openHistory(_ sender: NSMenuItem) {
+        let url = URL(fileURLWithPath: player.settings.history[sender.tag])
+        openFolder(url)
+        tree.select(url)
+    }
+
+    /// Called from openFolder: remember the folder at the top of history.
+    func recordHistory(_ folder: URL) {
+        var s = player.settings
+        s.history.removeAll { $0 == folder.path }
+        s.history.insert(folder.path, at: 0)
+        s.history = Array(s.history.prefix(BookmarksMenu.maxHistory))
+        player.settings = s
+        player.save()
     }
 }

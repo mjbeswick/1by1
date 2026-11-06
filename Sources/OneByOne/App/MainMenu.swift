@@ -41,6 +41,14 @@ enum MainMenu {
         view.addItem(withTitle: "Show Folder Tree", action: #selector(MainWindowController.toggleTree), keyEquivalent: functionKey(NSF4FunctionKey))
         bar.addItem(submenu: view, title: "View")
 
+        let bm = BookmarksMenu(settings: { Settings.load() })
+        let bookmarksItem = NSMenuItem(title: "Bookmarks", action: nil, keyEquivalent: "")
+        bookmarksItem.submenu = bm.bookmarks
+        bar.addItem(bookmarksItem)
+        let historyItem = NSMenuItem(title: "History", action: nil, keyEquivalent: "")
+        historyItem.submenu = bm.history
+        file.addItem(historyItem)
+
         let window = NSMenu(title: "Window")
         window.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         window.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")

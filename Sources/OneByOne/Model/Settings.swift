@@ -11,6 +11,16 @@ struct Settings: Codable {
     var repeatMode: Repeat = .off
     var shuffle = false
     var treeVisible = true
+    /// Saved folders and tracks. Up to 30, as the Rust build allowed.
+    var bookmarks: [Bookmark] = []
+    /// Recently opened folders, newest first.
+    var history: [String] = []
+
+    struct Bookmark: Codable, Equatable {
+        var title: String
+        var path: String
+        var isFolder: Bool
+    }
 
     struct Resume: Codable {
         var path: String
