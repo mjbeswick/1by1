@@ -38,8 +38,9 @@ Core port done. Settings pages and behaviors ported. Remaining gaps listed under
 
 ## Not yet applied
 
-- Proxy: stored, no effect. The app makes no outbound network requests, so there is nothing to route.
-- No label edit and file info menu: no effect. Label editing is never on, and the file info menu has no equivalent yet.
+- Removed from the settings window because nothing reads them: Proxy (the app makes no outbound requests), No label edit, File info menu. Their values stay in the settings file.
+- Not packaged for other machines: no Developer ID signing or notarization. The bundle runs only where its Homebrew and FFmpeg libraries were bundled from.
+- Opus-in-CAF: untested, no sample file can be made here.
 
 ## Verification
 

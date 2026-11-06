@@ -52,7 +52,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
             defer: false)
         win.title = "1by1"
         win.toolbarStyle = .unified
-        win.minSize = NSSize(width: 560, height: 340)
+        win.minSize = NSSize(width: 560, height: 420)
         super.init(window: win)
         win.delegate = self
         buildContent(in: win)

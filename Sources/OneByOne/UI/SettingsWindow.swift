@@ -218,7 +218,6 @@ final class SettingsWindow: NSWindowController, NSTableViewDataSource, NSTableVi
             ]),
             page([
                 check("Restore list on start", \.restoreList),
-                check("File info menu", \.fileInfoMenu),
                 check("Show folders in list", \.foldersInList),
                 check("Natural sort", \.naturalSort),
                 check("Lazy folder tree", \.lazyTree),
@@ -227,7 +226,6 @@ final class SettingsWindow: NSWindowController, NSTableViewDataSource, NSTableVi
                 check("Hide length in size column", \.noLengthInSize),
                 check("Always scan tags", \.alwaysScan),
                 check("Hide scrollbars", \.hideScrollbars),
-                check("No label edit", \.noLabelEdit),
                 check("Skip lists in search", \.skipListsInSearch),
                 check("Auto search directories", \.autoSearchDirs),
             ]),
@@ -284,7 +282,6 @@ final class SettingsWindow: NSWindowController, NSTableViewDataSource, NSTableVi
                 check("High priority", \.highPriority),
                 check("Minimize on close", \.minimizeOnClose),
                 check("Save every 5 minutes", \.autosave5min),
-                text("Proxy", \.proxy),
                 remoteControl(),
                 text("Remote address", \.httpAddr, width: 160),
             ]),
