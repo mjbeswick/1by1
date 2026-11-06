@@ -68,8 +68,9 @@ enum MainMenu {
         bar.addItem(submenu: view, title: "View")
 
         let remoteItem = NSMenuItem(title: "Start HTTP Remote", action: #selector(MainWindowController.toggleRemote), keyEquivalent: "R")
-        remoteItem.keyEquivalentModifierMask = [.command, .shift]
         remoteItem.tag = 900
+        remoteItem.keyEquivalentModifierMask = [.control, .shift]
+        remoteItem.keyEquivalent = "W"
         file.addItem(remoteItem)
         let bm = BookmarksMenu(settings: { Settings.load() })
         let bookmarksItem = NSMenuItem(title: "Bookmarks", action: nil, keyEquivalent: "")

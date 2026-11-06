@@ -5,7 +5,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var window: MainWindowController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        player = PlayerController(settings: Settings.load())
+        let settings = Settings.load()
+        // One instance: a second launch hands over to the running copy and quits.
+        if settings.oneInstance, let id = Bundle.main.bundleIdentifier,
+           NSRunningApplication.runningApplications(withBundleIdentifier: id).count > 1 {
+            NSRunningApplication.runningApplications(withBundleIdentifier: id)
+                .first { $0 != NSRunningApplication.current }?.activate(options: [])
+            NSApp.terminate(nil)
+            return
+        }
+        player = PlayerController(settings: settings)
         window = MainWindowController(player: player)
         NSApp.mainMenu = MainMenu.build(target: self)
         window.showWindow(nil)

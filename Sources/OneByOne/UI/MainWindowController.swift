@@ -18,6 +18,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     var logWindows: [NSWindowController] = []
     var listsSplit: NSSplitView?
     var keyMonitor: Any?
+    var highPriorityToken: NSObjectProtocol?
+    var statusItem: NSStatusItem?
     var findWindow: FindFilesWindow?
     weak var searchField: NSSearchField?
     var coverContainer: NSView?
@@ -228,7 +230,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         player.onFolderEnd = { [weak self] in self?.folderEnded() }
         tree.setRoots(initialRoots())
         let last = player.settings.lastFolder.map(URL.init(fileURLWithPath:))
-        if let last, !player.settings.startInBase, FileManager.default.fileExists(atPath: last.path) {
+        if let last, player.settings.restoreList, !player.settings.startInBase, FileManager.default.fileExists(atPath: last.path) {
             openFolder(last)
             tree.select(last)
         } else if let first = tree.roots.first {
@@ -328,9 +330,11 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         playPauseItem?.image = NSImage(systemSymbolName: playing ? "pause.fill" : "play.fill",
                                        accessibilityDescription: playing ? "Pause" : "Play")
         if let t = player.heardTrack {
-            window?.title = "1by1 - \(t.display)"
+            window?.title = windowTitle(for: t)
         }
-        bigTitle?.update(track: player.heardTrack, position: player.position, duration: player.duration)
+        bigTitle?.update(track: player.heardTrack, position: player.position, duration: player.duration,
+                         layout: player.settings.bigLayout, pattern: player.settings.bigInfoPattern,
+                         padding: player.settings.bigPadding, cycleSeconds: player.settings.bigCycleSecs)
         if player.isPaused { statusLabel.stringValue = "Paused" }
         updateStatus()
         tick()

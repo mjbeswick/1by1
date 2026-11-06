@@ -17,6 +17,15 @@ extension MainWindowController {
         let mods = e.modifierFlags.intersection([.command, .control, .option, .shift])
         let s = player.settings
         switch (e.keyCode, mods) {
+        case (53, []) where s.escQuit:                                           // Escape quits when set
+            NSApp.terminate(nil)
+            return true
+        case (36, [.option]):                                                    // Alt-Return: track info
+            showTrackInfo()
+            return true
+        case (97, []):                                                           // F6: settings
+            showSettings()
+            return true
         case (123, []):  player.rewind(by: -Double(s.rewindSecs)); return true   // Left
         case (124, []):  player.rewind(by: Double(s.forwardSecs)); return true   // Right
         case (123, [.shift]): stepFolder(-1); return true

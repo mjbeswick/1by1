@@ -143,3 +143,72 @@ extension MainWindowController {
         w.showWindow(nil)
     }
 }
+
+extension MainWindowController {
+    /// Title bar text, as the Title setting asks: name, elapsed, remaining, total.
+    func windowTitle(for t: Track) -> String {
+        let s = player.settings
+        let name = t.display
+        let pos = player.position
+        let total = player.duration
+        switch s.titleMode {
+        case .name: break
+        case .nameElapsed: return "\(clock(pos))  \(name)"
+        case .nameRemaining:
+            if let total { return "-\(clock(max(0, total - pos)))  \(name)" }
+        case .nameElapsedTotal:
+            if let total { return "\(clock(pos)) / \(clock(total))  \(name)" }
+        }
+        var line = "1by1 - \(name)"
+        if s.upcomingInTitle, let row = player.heard {
+            let next = nextIndex(count: player.tracks.count, cur: row, repeat: player.repeatMode)
+            if let next, player.tracks.indices.contains(next) { line += "  next: \(player.tracks[next].display)" }
+        }
+        return line
+    }
+}
+
+extension MainWindowController {
+    /// Close hides the window when Minimize on Close is set.
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard player.settings.minimizeOnClose else { return true }
+        sender.miniaturize(nil)
+        return false
+    }
+
+    /// The table fades while the window is in the background, per Dim Inactive List.
+    func windowDidResignKey(_ notification: Notification) { dimLists(true) }
+    func windowDidBecomeKey(_ notification: Notification) { dimLists(false) }
+
+    private func dimLists(_ inactive: Bool) {
+        let dim = Double(player.settings.dimInactiveList) / 100
+        table.view.alphaValue = inactive ? CGFloat(1 - dim) : 1
+    }
+
+    /// Settings-driven extras that have no layout of their own: tray icon, priority.
+    func applyExtras() {
+        let s = player.settings
+        if s.trayIcon, statusItem == nil {
+            let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+            item.button?.image = NSImage(systemSymbolName: "music.note", accessibilityDescription: "1by1")
+            let menu = NSMenu()
+            menu.addItem(withTitle: "Play / Pause", action: #selector(playPausePressed), keyEquivalent: "").target = self
+            menu.addItem(withTitle: "Next Track", action: #selector(nextTrack), keyEquivalent: "").target = self
+            menu.addItem(withTitle: "Previous Track", action: #selector(previousTrack), keyEquivalent: "").target = self
+            menu.addItem(.separator())
+            menu.addItem(withTitle: "Quit 1by1", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "").target = NSApp
+            item.menu = menu
+            statusItem = item
+        } else if !s.trayIcon, let item = statusItem {
+            NSStatusBar.system.removeStatusItem(item)
+            statusItem = nil
+        }
+        if s.highPriority, highPriorityToken == nil {
+            highPriorityToken = ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .latencyCritical],
+                                                                      reason: "1by1 playback")
+        } else if !s.highPriority, let t = highPriorityToken {
+            ProcessInfo.processInfo.endActivity(t)
+            highPriorityToken = nil
+        }
+    }
+}

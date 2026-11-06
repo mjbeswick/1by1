@@ -150,7 +150,12 @@ final class PlayerController {
 
     func stop() {
         rememberResume()
+        fadeOut(ms: settings.fadeStopMs) { [weak self] in self?.hardStop() }
+    }
+
+    private func hardStop() {
         engine.stop()
+        engine.volume = settings.muted ? 0 : settings.volume
         heard = nil
         fed = []
         feedCursor = nil
@@ -164,7 +169,25 @@ final class PlayerController {
             stop()
             return
         }
-        play(row: n)
+        fadeOut(ms: settings.fadeSkipMs) { [weak self] in
+            guard let self else { return }
+            self.engine.volume = self.settings.muted ? 0 : self.settings.volume
+            self.play(row: n)
+        }
+    }
+
+    /// Ramp the output to silence over `ms`, then run `then`. Zero means at once.
+    func fadeOut(ms: Int, then: @escaping () -> Void) {
+        guard ms > 0, engine.state != .stopped else { then(); return }
+        let steps = 10
+        let start = engine.volume
+        for i in 1...steps {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(ms) * Double(i) / 1000 / Double(steps)) { [weak self] in
+                guard let self else { return }
+                self.engine.volume = start * Float(steps - i) / Float(steps)
+                if i == steps { then() }
+            }
+        }
     }
 
     func prev() {
@@ -233,6 +256,7 @@ final class PlayerController {
     /// The engine started hearing the head of its queue.
     private func trackChanged() {
         guard !fed.isEmpty else { return }
+        let previous = lastHeard
         let row = fed.removeFirst()
         if quitAfterTrack, heard != nil {
             quitAfterTrack = false
@@ -240,14 +264,22 @@ final class PlayerController {
             onQuitRequested?()
             return
         }
+        let nowPlaying = tracks[row]
         heard = row
         lastHeard = row
+        if settings.removePlayed, !usesPlaylist, let p = previous, p != row, folderTracks.indices.contains(p) {
+            // The finished row goes. The track now playing keeps its place in the list.
+            replaceFolderTracks(folderTracks.enumerated().filter { $0.offset != p }.map { $0.element })
+            let newRow = folderTracks.firstIndex { $0 === nowPlaying }
+            heard = newRow
+            lastHeard = newRow
+        }
         if let t = heardTrack {
             if settings.logEnabled { TrackLog.append(t, maxKB: settings.logMaxKB) }
             rememberRecentTrack(t)
         }
         rememberResume()
-        onTrackHeard?(row)
+        if let h = heard { onTrackHeard?(h) }
         onChange?()
     }
 
@@ -259,7 +291,9 @@ final class PlayerController {
         // Without gapless the next track starts here, after a short gap.
         if !settings.gapless, let last = lastHeard, settings.oneTrack == false,
            let n = nextIndex(count: tracks.count, cur: last, repeat: repeatMode) {
-            play(row: n)
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(settings.autoSpaceMs) / 1000) { [weak self] in
+                self?.play(row: n)
+            }
             return
         }
         if lastHeard != nil, !settings.oneTrack, repeatMode == .off,

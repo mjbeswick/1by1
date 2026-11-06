@@ -89,6 +89,7 @@ extension MainWindowController {
         if s.bigView, bigTitle?.window?.isVisible != true { toggleBigTitle() }
         if !s.bigView, bigTitle?.window?.isVisible == true { bigTitle?.window?.close() }
         startAutosave()
+        applyExtras()
         table.reload()
         playlistTable.reload()
         refresh()
