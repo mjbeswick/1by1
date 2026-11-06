@@ -6,7 +6,13 @@ final class PlayerController {
     var settings: Settings
 
     private(set) var folder: URL?
-    private(set) var tracks: [Track] = []
+    private(set) var folderTracks: [Track] = []
+    /// Queued tracks from any folder. Played in order when `usesPlaylist` is set.
+    private(set) var playlist: [Track] = []
+    private(set) var usesPlaylist = false
+
+    /// The list playback walks: the playlist or the current folder.
+    var tracks: [Track] { usesPlaylist ? playlist : folderTracks }
     /// Row being heard. `nil` when stopped.
     private(set) var heard: Int?
     /// Rows handed to the engine and not yet heard. The head is heard next.
@@ -47,11 +53,47 @@ final class PlayerController {
 
     /// Replace the list with `tracks` from `folder`. Playback keeps going if the file is still listed.
     func setFolder(_ url: URL, tracks newTracks: [Track]) {
+        if engine.state != .stopped { stop() }
         folder = url
-        tracks = newTracks
+        folderTracks = newTracks
+        usesPlaylist = false
         settings.lastFolder = url.path
         save()
         onChange?()
+    }
+
+    // MARK: - Playlist
+
+    /// Append folder rows to the playlist. Returns how many were added.
+    
+    func enqueue(rows: [Int]) -> Int {
+        let add = rows.filter { folderTracks.indices.contains($0) }.map { folderTracks[$0] }
+        playlist += add
+        onChange?()
+        return add.count
+    }
+
+    func removePlaylistRows(_ rows: IndexSet) {
+        playlist = playlist.enumerated().filter { !rows.contains($0.offset) }.map { $0.element }
+        onChange?()
+    }
+
+    func clearPlaylist() {
+        playlist = []
+        onChange?()
+    }
+
+    /// Play a row of the current folder.
+    func playFolder(row: Int) {
+        usesPlaylist = false
+        play(row: row)
+    }
+
+    /// Play a row of the playlist.
+    func playFromPlaylist(row: Int) {
+        guard playlist.indices.contains(row) else { return }
+        usesPlaylist = true
+        play(row: row)
     }
 
     // MARK: - Transport

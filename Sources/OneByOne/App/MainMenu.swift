@@ -28,6 +28,9 @@ enum MainMenu {
         play.addItem(.separator())
         play.addItem(withTitle: "Go to Track...", action: #selector(MainWindowController.goToRow), keyEquivalent: "g")
         play.addItem(withTitle: "Track Info...", action: #selector(MainWindowController.showTrackInfo), keyEquivalent: "i")
+        play.addItem(withTitle: "Add to Playlist", action: #selector(MainWindowController.enqueueSelected), keyEquivalent: "\r")
+            .keyEquivalentModifierMask = [.control]
+        play.addItem(withTitle: "Clear Playlist", action: #selector(MainWindowController.clearPlaylist), keyEquivalent: "")
         play.addItem(withTitle: "Repeat", action: #selector(MainWindowController.cycleRepeat), keyEquivalent: "r")
             .keyEquivalentModifierMask = [.control]
         play.addItem(withTitle: "Shuffle", action: #selector(MainWindowController.toggleShuffle), keyEquivalent: "p")

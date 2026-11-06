@@ -9,7 +9,7 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
     var onActivate: ((Int) -> Void)?
     var onSelectionChange: (() -> Void)?
 
-    override init() {
+    init(autosaveName: String) {
         view = NSScrollView()
         super.init()
         let columns: [(String, String, CGFloat)] = [
@@ -30,13 +30,15 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         table.target = self
         table.doubleAction = #selector(activated)
         table.rowHeight = 20
-        table.autosaveName = "TrackTable"
+        table.autosaveName = autosaveName
         table.autosaveTableColumns = true
         view.documentView = table
         view.hasVerticalScroller = true
         view.hasHorizontalScroller = true
         view.autohidesScrollers = true
     }
+
+    var selectedRows: IndexSet { table.selectedRowIndexes }
 
     var selectedRow: Int? {
         let r = table.selectedRow

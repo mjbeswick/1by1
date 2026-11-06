@@ -4,7 +4,8 @@ import AppKit
 final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindowDelegate {
     let player: PlayerController
     private let tree = FolderTreeController()
-    private let table = TrackTableController()
+    private let table = TrackTableController(autosaveName: "TrackTable")
+    private let playlistTable = TrackTableController(autosaveName: "PlaylistTable")
     private let seekSlider = NSSlider(value: 0, minValue: 0, maxValue: 1, target: nil, action: nil)
     private let timeLabel = NSTextField(labelWithString: "0:00 / 0:00")
     private let volumeSlider = NSSlider(value: 1, minValue: 0, maxValue: 1, target: nil, action: nil)
@@ -53,7 +54,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
 
     private func buildContent(in win: NSWindow) {
         tree.onSelect = { [weak self] url in self?.openFolder(url) }
-        table.onActivate = { [weak self] row in self?.player.play(row: row) }
+        table.onActivate = { [weak self] row in self?.player.playFolder(row: row) }
         table.onSelectionChange = { [weak self] in self?.updateStatus() }
 
         let treeVC = NSViewController()
@@ -108,17 +109,25 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         separator.boxType = .separator
         separator.translatesAutoresizingMaskIntoConstraints = false
 
-        for v in [table.view, transport, separator, statusLabel] as [NSView] {
+        playlistTable.onActivate = { [weak self] row in self?.player.playFromPlaylist(row: row) }
+        let lists = NSSplitView()
+        lists.isVertical = false
+        lists.dividerStyle = .thin
+        lists.addArrangedSubview(table.view)
+        lists.addArrangedSubview(playlistTable.view)
+        lists.setHoldingPriority(NSLayoutConstraint.Priority(250), forSubviewAt: 0)
+        lists.translatesAutoresizingMaskIntoConstraints = false
+        for v in [lists, transport, separator, statusLabel] as [NSView] {
             v.translatesAutoresizingMaskIntoConstraints = false
             root.addSubview(v)
         }
-        table.view.setContentHuggingPriority(.defaultLow, for: .vertical)
+        playlistTable.view.heightAnchor.constraint(greaterThanOrEqualToConstant: 80).isActive = true
 
         NSLayoutConstraint.activate([
-            table.view.topAnchor.constraint(equalTo: root.topAnchor),
-            table.view.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            table.view.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            table.view.bottomAnchor.constraint(equalTo: transport.topAnchor),
+            lists.topAnchor.constraint(equalTo: root.topAnchor),
+            lists.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            lists.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            lists.bottomAnchor.constraint(equalTo: transport.topAnchor),
 
             transport.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             transport.trailingAnchor.constraint(equalTo: root.trailingAnchor),
@@ -283,10 +292,12 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
 
     /// Repaint everything that depends on playback state.
     func refresh() {
+        playlistTable.setTracks(player.playlist)
+        table.setHeard(player.usesPlaylist ? nil : player.heard)
+        playlistTable.setHeard(player.usesPlaylist ? player.heard : nil)
         let playing = player.isPlaying
         playPauseItem?.image = NSImage(systemSymbolName: playing ? "pause.fill" : "play.fill",
                                        accessibilityDescription: playing ? "Pause" : "Play")
-        table.setHeard(player.heard)
         if let t = player.heardTrack {
             window?.title = "1by1 - \(t.display)"
         }
@@ -377,5 +388,17 @@ extension MainWindowController {
         infoWindows.append(info)
         info.showWindow(nil)
         info.window?.center()
+    }
+}
+
+extension MainWindowController {
+    /// Queue the selected folder rows at the end of the playlist.
+    @objc func enqueueSelected() {
+        let rows = Array(table.selectedRows)
+        player.enqueue(rows: rows)
+    }
+
+    @objc func clearPlaylist() {
+        player.clearPlaylist()
     }
 }
