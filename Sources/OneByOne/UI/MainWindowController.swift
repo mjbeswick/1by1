@@ -23,6 +23,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         static let next = NSToolbarItem.Identifier("next")
         static let repeatMode = NSToolbarItem.Identifier("repeat")
         static let shuffle = NSToolbarItem.Identifier("shuffle")
+        static let search = NSToolbarItem.Identifier("search")
     }
 
     init(player: PlayerController) {
@@ -33,7 +34,6 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
             backing: .buffered,
             defer: false)
         win.title = "1by1"
-        win.setFrameAutosaveName("MainWindow")
         win.toolbarStyle = .unified
         win.minSize = NSSize(width: 560, height: 340)
         super.init(window: win)
@@ -75,7 +75,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     }
 
     private func makeContentView() -> NSView {
-        let root = NSView()
+        let root = DropView()
+        root.onDrop = { [weak self] urls in self?.handleDrop(urls) }
 
         seekSlider.target = self
         seekSlider.action = #selector(seekChanged(_:))
@@ -143,12 +144,12 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         [ItemID.tree, ItemID.open, ItemID.prev, ItemID.playPause, ItemID.stop, ItemID.next,
-         ItemID.repeatMode, ItemID.shuffle, .flexibleSpace, .space]
+         ItemID.repeatMode, ItemID.shuffle, .flexibleSpace, ItemID.search]
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         [ItemID.tree, ItemID.open, .flexibleSpace, ItemID.prev, ItemID.playPause, ItemID.stop, ItemID.next,
-         ItemID.repeatMode, ItemID.shuffle]
+         ItemID.repeatMode, ItemID.shuffle, .flexibleSpace, ItemID.search]
     }
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier,
@@ -172,6 +173,13 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         case ItemID.next: button("forward.end.fill", "Next", #selector(nextTrack))
         case ItemID.repeatMode: button("repeat", "Repeat", #selector(cycleRepeat))
         case ItemID.shuffle: button("shuffle", "Shuffle", #selector(toggleShuffle))
+        case ItemID.search:
+            let field = NSSearchField(frame: NSRect(x: 0, y: 0, width: 180, height: 22))
+            field.placeholderString = "Find in list"
+            field.target = self
+            field.action = #selector(searchFieldChanged(_:))
+            item.label = "Find"
+            item.view = field
         default: return nil
         }
         return item
@@ -301,5 +309,59 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         guard player.heard == nil, !player.tracks.isEmpty else { return }
         let folder = player.folder?.lastPathComponent ?? ""
         statusLabel.stringValue = "\(player.tracks.count) tracks in \(folder)"
+    }
+}
+
+// MARK: - Drop, search and go-to
+
+extension MainWindowController {
+    /// A dropped folder opens as the list. A dropped file opens its folder and plays the file.
+    func handleDrop(_ urls: [URL]) {
+        if let dir = urls.first(where: { isDirectory($0) }) {
+            tree.add(root: dir)
+            openFolder(dir)
+            return
+        }
+        guard let first = urls.first(where: { isAudio($0) || isCueSheet($0) || isPlaylist($0) }) else { return }
+        let dir = first.deletingLastPathComponent()
+        openFolder(dir)
+        if let row = player.tracks.firstIndex(where: { $0.url == first }) {
+            table.select(row: row)
+            player.play(row: row)
+        }
+    }
+
+    func isDirectory(_ url: URL) -> Bool {
+        var d: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &d) && d.boolValue
+    }
+
+    /// Select the first row whose name or tag title contains `text`.
+    @objc func searchChanged(_ text: String) {
+        guard !text.isEmpty else { return }
+        if let row = player.tracks.firstIndex(where: { containsCI($0.display, text) || containsCI($0.name, text) }) {
+            table.select(row: row)
+        }
+    }
+
+    /// Ask for a 1-based row number and select it.
+    @objc func goToRow() {
+        let alert = NSAlert()
+        alert.messageText = "Go to track"
+        alert.informativeText = "Track number (1 to \(player.tracks.count))"
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Go")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn,
+              let n = Int(field.stringValue.trimmingCharacters(in: .whitespaces)),
+              (1...max(1, player.tracks.count)).contains(n) else { return }
+        table.select(row: n - 1)
+    }
+}
+
+extension MainWindowController {
+    @objc func searchFieldChanged(_ sender: NSSearchField) {
+        searchChanged(sender.stringValue)
     }
 }

@@ -26,6 +26,7 @@ enum MainMenu {
         play.addItem(withTitle: "Next Track", action: #selector(MainWindowController.nextTrack), keyEquivalent: functionKey(NSRightArrowFunctionKey))
             .keyEquivalentModifierMask = [.control]
         play.addItem(.separator())
+        play.addItem(withTitle: "Go to Track...", action: #selector(MainWindowController.goToRow), keyEquivalent: "g")
         play.addItem(withTitle: "Repeat", action: #selector(MainWindowController.cycleRepeat), keyEquivalent: "r")
             .keyEquivalentModifierMask = [.control]
         play.addItem(withTitle: "Shuffle", action: #selector(MainWindowController.toggleShuffle), keyEquivalent: "p")
