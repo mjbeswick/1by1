@@ -135,6 +135,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         statusLabel.textColor = .secondaryLabelColor
         statusLabel.lineBreakMode = .byTruncatingTail
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
+        let statusBox = NSStackView(views: [statusLabel])
+        statusBox.edgeInsets = NSEdgeInsets(top: 3, left: 12, bottom: 4, right: 12)
 
         let separator = NSBox()
         separator.boxType = .separator
@@ -148,35 +150,28 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         lists.translatesAutoresizingMaskIntoConstraints = false
         // The lists take all the height the transport and status rows leave. Without this the
         // split collapses to zero height and the track list is invisible.
-        lists.setContentHuggingPriority(.defaultLow, for: .vertical)
+        lists.setContentHuggingPriority(NSLayoutConstraint.Priority(1), for: .vertical)
         lists.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         lists.heightAnchor.constraint(greaterThanOrEqualToConstant: 120).isActive = true
         transport.setContentHuggingPriority(.required, for: .vertical)
         statusLabel.setContentHuggingPriority(.required, for: .vertical)
-        for v in [lists, transport, separator, statusLabel] as [NSView] {
-            v.translatesAutoresizingMaskIntoConstraints = false
-            root.addSubview(v)
-        }
-        playlistTable.view.heightAnchor.constraint(greaterThanOrEqualToConstant: 80).isActive = true
-
-        // Seek and volume sit at the top, then the lists, then the status line.
+        // A vertical stack: seek and volume on top, the lists filling the middle, status at the bottom.
+        let column = NSStackView(views: [transport, separator, lists, statusBox])
+        column.orientation = .vertical
+        column.alignment = .leading
+        column.spacing = 0
+        column.distribution = .fill
+        column.translatesAutoresizingMaskIntoConstraints = false
+        root.addSubview(column)
         NSLayoutConstraint.activate([
-            transport.topAnchor.constraint(equalTo: root.topAnchor),
-            transport.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            transport.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            transport.bottomAnchor.constraint(equalTo: lists.topAnchor),
-
-            lists.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            lists.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            lists.bottomAnchor.constraint(equalTo: separator.topAnchor),
-
-            separator.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            separator.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            separator.bottomAnchor.constraint(equalTo: statusLabel.topAnchor, constant: -3),
-
-            statusLabel.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
-            statusLabel.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
-            statusLabel.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -4),
+            column.topAnchor.constraint(equalTo: root.topAnchor),
+            column.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+            column.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            column.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            transport.widthAnchor.constraint(equalTo: column.widthAnchor),
+            separator.widthAnchor.constraint(equalTo: column.widthAnchor),
+            lists.widthAnchor.constraint(equalTo: column.widthAnchor),
+            statusBox.widthAnchor.constraint(equalTo: column.widthAnchor),
         ])
         return root
     }
