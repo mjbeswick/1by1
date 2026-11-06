@@ -1,4 +1,5 @@
 import AVFoundation
+import AudioToolbox
 import CTagLib
 import Foundation
 
@@ -294,22 +295,27 @@ func scanInfo(_ url: URL) -> AudioInfo? {
     if isModule(url) { return moduleInfo(url) }
     guard let file = taglib_file_new(url.path) else { return nil }
     defer { taglib_file_free(file) }
-    guard taglib_file_is_valid(file) != 0 else { return nil }
+    // TagLib cannot read every container (CAF, for one). Keep going for length and format.
+    let tagsOK = taglib_file_is_valid(file) != 0
     var info = AudioInfo()
     info.decoder = decoderName(url)
-    if let props = taglib_file_audioproperties(file) {
+    if tagsOK, let props = taglib_file_audioproperties(file) {
         let secs = taglib_audioproperties_length(props)
         info.duration = secs > 0 ? Double(secs) : nil
         info.bitrate = Int(taglib_audioproperties_bitrate(props))
         info.sampleRate = Double(taglib_audioproperties_samplerate(props))
         info.channels = Int(taglib_audioproperties_channels(props))
     }
-    if let tag = taglib_file_tag(file) {
+    if tagsOK, let tag = taglib_file_tag(file) {
         info.tags = readTags(tag)
     }
     // AVFoundation gives an exact length for most formats. Prefer it over TagLib's integer seconds.
     if let f = try? AVAudioFile(forReading: url), f.length > 0 {
         info.duration = Double(f.length) / f.processingFormat.sampleRate
+    }
+    // Some files report no length here (Opus in CAF). Ask the decoder instead.
+    if info.duration == nil, let d = estimatedDuration(url) {
+        info.duration = d
     }
     return info
 }
@@ -417,4 +423,17 @@ func firstFolderWithAudio(_ dir: URL, depth: Int) -> URL? {
         if level.isEmpty { break }
     }
     return nil
+}
+
+/// Duration from AudioToolbox's estimate, which reads packet tables such as CAF's.
+func estimatedDuration(_ url: URL) -> Double? {
+    var file: AudioFileID?
+    guard AudioFileOpenURL(url as CFURL, .readPermission, 0, &file) == noErr, let file else { return nil }
+    defer { AudioFileClose(file) }
+    var seconds = Double(0)
+    var size = UInt32(MemoryLayout<Double>.size)
+    guard AudioFileGetProperty(file, kAudioFilePropertyEstimatedDuration, &size, &seconds) == noErr, seconds > 0 else {
+        return nil
+    }
+    return seconds
 }
