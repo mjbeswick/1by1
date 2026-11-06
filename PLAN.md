@@ -38,20 +38,15 @@ Core port done. Settings pages and behaviors ported. Remaining gaps listed under
 
 ## Not yet applied
 
-Stored in settings and shown in the settings window, but no effect yet:
-- Scroll-wheel: volume works over the transport line. Folder tree and lists are not changed.
-- Tab moves between toolbar and lists.
-- No label edit, file info menu (no effect: label editing is never on).
-- Skip lists in search, auto search directories, continue in focused list.
-- Always scan tags (folders are scanned in the background anyway).
-- Proxy (the app makes no outbound requests, so this has no use yet).
-- Themes: the Rust build's named themes are not in settings. The app follows the system light and dark appearance.
+- Proxy: stored, no effect. The app makes no outbound network requests, so there is nothing to route.
+- No label edit and file info menu: no effect. Label editing is never on, and the file info menu has no equivalent yet.
 
-Known limits:
-- Ogg Vorbis verified only with a file encoded by libvorbisenc here.
-- Layout verified by screenshot at default size. Resizing and the compact view are not checked.
-- MKV, WebM and Opus-in-CAF are unsupported. FFmpeg would add about 40 MB.
-- Settings from the Rust build (settings.toml, bookmarks, resume points) are not imported.
+## Verification
+
+- `--selftest`, `--smoke` (AVFoundation, Vorbis, OpenMPT, FFmpeg formats), `--scan`, `--import-check`.
+- Window at default size, resized, and compact view checked by screenshot.
+- Ogg Vorbis checked with a file from libvorbisenc. Opus-in-CAF: no sample file, untested.
+- Rust settings import checked against the real `~/.config/1by1/settings.toml`.
 
 ## Decisions
 

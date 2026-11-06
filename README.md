@@ -24,7 +24,7 @@ The app bundle is ad hoc signed. It runs on the machine that built it.
 - libvorbisfile: Ogg Vorbis. Ogg Opus plays through AVFoundation.
 - libopenmpt: MOD, XM, S3M, IT, MTM and the other tracker formats. Read-only metadata.
 - Cue sheets expand into virtual tracks. `.m3u` and `.m3u8` load as lists.
-- Not supported: Matroska, WebM, Opus in CAF.
+- FFmpeg (libavformat, libswresample): Matroska, WebM, MKA, and any file AVFoundation refuses.
 
 ## Use
 
@@ -37,7 +37,7 @@ The app bundle is ad hoc signed. It runs on the machine that built it.
 - File > Start HTTP Remote runs a control page on 127.0.0.1:8080.
   Paths: `/res /prv /nxt /rew /fwd /vdn /vup /dprv /dnxt /home`.
 
-Settings live in `~/Library/Application Support/1by1/settings.json`.
+Settings live in `~/Library/Application Support/1by1/settings.json`. On first run the app imports `~/.config/1by1/settings.toml` from the Rust build if it exists.
 
 ## Layout
 
@@ -59,4 +59,5 @@ scripts/make-app.sh   app bundle with Homebrew dylibs
 .build/debug/OneByOne --selftest                 # logic checks
 .build/debug/OneByOne --scan <folder>            # what the library sees
 .build/debug/OneByOne --smoke <file> [<file>...] # headless gapless playback
+.build/debug/OneByOne --import-check             # what the Rust settings.toml import finds
 ```
