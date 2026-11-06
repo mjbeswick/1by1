@@ -16,6 +16,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     private var seeking = false
     private var infoWindows: [TrackInfoWindow] = []
     var remote: RemoteServer?
+    var bigTitle: BigTitleWindow?
+    var settingsWindow: SettingsWindow?
 
     private enum ItemID {
         static let tree = NSToolbarItem.Identifier("tree")
@@ -304,6 +306,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         if let t = player.heardTrack {
             window?.title = "1by1 - \(t.display)"
         }
+        bigTitle?.update(track: player.heardTrack, position: player.position, duration: player.duration)
         if player.isPaused { statusLabel.stringValue = "Paused" }
         updateStatus()
         tick()
@@ -503,5 +506,31 @@ extension MainWindowController {
             }
         }
         player.save()
+    }
+}
+
+extension MainWindowController {
+    @objc func toggleBigTitle() {
+        if let bigTitle, bigTitle.window?.isVisible == true {
+            bigTitle.window?.close()
+            return
+        }
+        let w = bigTitle ?? BigTitleWindow()
+        bigTitle = w
+        w.showWindow(nil)
+        refresh()
+    }
+
+    @objc func showSettings() {
+        let w = settingsWindow ?? SettingsWindow(player: player)
+        w.onRemoteToggle = { [weak self] on in self?.setRemote(on) }
+        settingsWindow = w
+        w.showWindow(nil)
+    }
+
+    /// Explicit start or stop of the remote, for the settings checkbox.
+    func setRemote(_ on: Bool) {
+        if on, remote == nil { toggleRemote() }
+        if !on, remote != nil { toggleRemote() }
     }
 }

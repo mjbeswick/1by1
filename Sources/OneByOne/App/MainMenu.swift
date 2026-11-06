@@ -49,6 +49,12 @@ enum MainMenu {
         let bookmarksItem = NSMenuItem(title: "Bookmarks", action: nil, keyEquivalent: "")
         bookmarksItem.submenu = bm.bookmarks
         bar.addItem(bookmarksItem)
+        let viewItem = NSMenuItem(title: "Big Title View", action: #selector(MainWindowController.toggleBigTitle), keyEquivalent: "b")
+        viewItem.keyEquivalentModifierMask = [.control]
+        view.addItem(viewItem)
+        let prefs = NSMenuItem(title: "Settings...", action: #selector(MainWindowController.showSettings), keyEquivalent: ",")
+        app.insertItem(prefs, at: 2)
+        app.insertItem(.separator(), at: 3)
         let historyItem = NSMenuItem(title: "History", action: nil, keyEquivalent: "")
         historyItem.submenu = bm.history
         file.addItem(historyItem)
