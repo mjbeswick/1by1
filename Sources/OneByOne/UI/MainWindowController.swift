@@ -135,8 +135,15 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         statusLabel.textColor = .secondaryLabelColor
         statusLabel.lineBreakMode = .byTruncatingTail
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        let statusBox = NSStackView(views: [statusLabel])
-        statusBox.edgeInsets = NSEdgeInsets(top: 3, left: 12, bottom: 4, right: 12)
+        // A plain container pins the label to the leading edge. A stack view would centre it.
+        let statusBox = NSView()
+        statusBox.addSubview(statusLabel)
+        NSLayoutConstraint.activate([
+            statusLabel.leadingAnchor.constraint(equalTo: statusBox.leadingAnchor, constant: 12),
+            statusLabel.trailingAnchor.constraint(lessThanOrEqualTo: statusBox.trailingAnchor, constant: -12),
+            statusLabel.topAnchor.constraint(equalTo: statusBox.topAnchor, constant: 3),
+            statusLabel.bottomAnchor.constraint(equalTo: statusBox.bottomAnchor, constant: -4),
+        ])
 
         let separator = NSBox()
         separator.boxType = .separator
