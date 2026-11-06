@@ -39,10 +39,9 @@ Core port done. Settings pages and behaviors ported. Remaining gaps listed under
 ## Not yet applied
 
 Stored in settings and shown in the settings window, but no effect yet:
-- Folders in list (show subfolder rows in the track list).
 - Scroll-wheel: volume works over the transport line. Folder tree and lists are not changed.
 - Tab moves between toolbar and lists.
-- Tree style "explorer", no label edit, file info menu.
+- No label edit, file info menu (no effect: label editing is never on).
 - Skip lists in search, auto search directories, continue in focused list.
 - Always scan tags (folders are scanned in the background anyway).
 - Proxy (the app makes no outbound requests, so this has no use yet).

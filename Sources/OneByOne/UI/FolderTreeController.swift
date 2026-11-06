@@ -44,6 +44,11 @@ final class FolderTreeController: NSObject, NSOutlineViewDataSource, NSOutlineVi
         view.drawsBackground = false
     }
 
+    /// Explorer style uses the inset list look instead of the source list.
+    func setExplorerStyle(_ on: Bool) {
+        outline.style = on ? .inset : .sourceList
+    }
+
     /// Indent and row height, from the window style settings.
     func applyStyle(rowSpacing: Bool, bigger: Bool, lines: Bool) {
         outline.indentationPerLevel = rowSpacing ? 18 : 12

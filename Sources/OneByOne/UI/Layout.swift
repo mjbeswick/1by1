@@ -86,6 +86,7 @@ extension MainWindowController {
         volumeSlider.controlSize = s.largerSliders ? .regular : .small
         for item in window?.toolbar?.items ?? [] { item.toolTip = s.showTooltips ? item.label : nil }
         tree.applyStyle(rowSpacing: s.treeSpacing, bigger: s.biggerTree, lines: s.treeLines)
+        tree.setExplorerStyle(s.treeStyleExplorer)
         rebuildLists()
         updateCover()
         setHistoryMenuHidden(!s.historyMenus)
