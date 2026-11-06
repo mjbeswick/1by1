@@ -11,6 +11,7 @@ struct Settings: Codable {
     var repeatMode: Repeat = .off
     var shuffle = false
     var treeVisible = true
+    var httpEnabled = false
     /// Saved folders and tracks. Up to 30, as the Rust build allowed.
     var bookmarks: [Bookmark] = []
     /// Recently opened folders, newest first.

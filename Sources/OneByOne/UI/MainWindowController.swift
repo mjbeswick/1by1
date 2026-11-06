@@ -15,6 +15,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     private weak var playPauseItem: NSToolbarItem?
     private var seeking = false
     private var infoWindows: [TrackInfoWindow] = []
+    var remote: RemoteServer?
 
     private enum ItemID {
         static let tree = NSToolbarItem.Identifier("tree")
@@ -43,6 +44,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         buildContent(in: win)
         buildToolbar(for: win)
         wirePlayer()
+        if player.settings.httpEnabled { toggleRemote() }
         ticker = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
             self?.tick()
         }
@@ -449,6 +451,57 @@ extension MainWindowController {
         s.history.insert(folder.path, at: 0)
         s.history = Array(s.history.prefix(BookmarksMenu.maxHistory))
         player.settings = s
+        player.save()
+    }
+}
+
+// MARK: - HTTP remote
+
+extension MainWindowController {
+    /// Run a remote command. Paths match the Rust build.
+    func runRemote(_ path: String) {
+        switch path {
+        case "/res": player.togglePause(selectedRow: table.selectedRow)
+        case "/prv": player.prev()
+        case "/nxt": player.next()
+        case "/rew": player.rewind(by: -5)
+        case "/fwd": player.rewind(by: 5)
+        case "/vdn": player.setVolume(player.settings.volume - 0.05)
+        case "/vup": player.setVolume(player.settings.volume + 0.05)
+        case "/dprv": stepFolder(-1)
+        case "/dnxt": stepFolder(1)
+        case "/home": if let row = player.heard { table.select(row: row) }
+        default: break
+        }
+    }
+
+    /// Open the sibling folder before or after the current one.
+    func stepFolder(_ delta: Int) {
+        guard let folder = player.folder else { return }
+        let siblings = subfolders(folder.deletingLastPathComponent())
+        guard let i = siblings.firstIndex(of: folder) else { return }
+        let j = i + delta
+        guard siblings.indices.contains(j) else { return }
+        openFolder(siblings[j])
+        tree.select(siblings[j])
+    }
+
+    /// Start or stop the remote. Port and state persist in settings.
+    @objc func toggleRemote() {
+        if let remote {
+            remote.stop()
+            self.remote = nil
+            player.settings.httpEnabled = false
+        } else {
+            let r = RemoteServer { [weak self] path in self?.runRemote(path) }
+            do {
+                try r.start()
+                remote = r
+                player.settings.httpEnabled = true
+            } catch {
+                statusLabel.stringValue = "Remote failed on port \(r.port): \(error.localizedDescription)"
+            }
+        }
         player.save()
     }
 }
