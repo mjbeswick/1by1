@@ -115,7 +115,10 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         cell.textField?.alignment = alignRight ? .right : .left
         let heard = row == heardRow
         cell.textField?.font = heard ? .boldSystemFont(ofSize: 13) : .systemFont(ofSize: 13)
-        cell.textField?.textColor = heard ? .controlAccentColor : .labelColor
+        // On a selected row the accent blue would vanish into the selection blue, so use white there.
+        let selected = table.isRowSelected(row)
+        cell.textField?.textColor = selected ? .alternateSelectedControlTextColor
+            : heard ? .controlAccentColor : .labelColor
         return cell
     }
 
@@ -136,6 +139,11 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
+        // Repaint the now-playing row so its colour follows the selection.
+        if let r = heardRow, r < rows.count {
+            table.reloadData(forRowIndexes: IndexSet(integer: r),
+                             columnIndexes: IndexSet(integersIn: 0..<table.numberOfColumns))
+        }
         onSelectionChange?()
     }
 
