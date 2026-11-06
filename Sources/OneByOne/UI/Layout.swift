@@ -93,6 +93,7 @@ extension MainWindowController {
         if !s.bigView, bigTitle?.window?.isVisible == true { bigTitle?.window?.close() }
         startAutosave()
         applyExtras()
+        if player.refreshFolderIfChanged() { table.setTracks(player.folderTracks) }
         table.reload()
         playlistTable.reload()
         refresh()

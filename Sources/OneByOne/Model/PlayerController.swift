@@ -311,6 +311,7 @@ final class PlayerController {
         for _ in 0..<tracks.count {
             guard let n = pickNext(from: at) else { return nil }
             let spec = tracks[n].spec
+            if tracks[n].isFolder { at = n; continue }
             if (try? openSource(spec.url)) != nil {
                 fed.append(n)
                 feedCursor = n

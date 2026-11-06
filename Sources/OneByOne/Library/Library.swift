@@ -88,6 +88,9 @@ final class Track {
 
     var isCue: Bool { cue != nil }
 
+    /// A subfolder row, shown when Folders in List is on. Activating it opens the folder.
+    var isFolder = false
+
     /// Tag title when present, else file name.
     /// Tag title when tag titles are on and present, else file name.
     var display: String {
@@ -107,7 +110,7 @@ final class Track {
         return info?.duration
     }
 
-    var typeText: String { isCue ? "CUE" : ext.uppercased() }
+    var typeText: String { isFolder ? "DIR" : isCue ? "CUE" : ext.uppercased() }
 
     /// Info column text, as chosen in settings.
     var infoText: String {
@@ -163,6 +166,19 @@ func isCueSheet(_ url: URL) -> Bool { url.pathExtension.lowercased() == "cue" }
 /// Subfolders directly in `dir`, natural order.
 func subfolders(_ dir: URL) -> [URL] {
     entries(dir, files: false) { _ in true }
+}
+
+/// Rows for a folder. Subfolders come first when `withFolders` is set.
+func folderRows(_ dir: URL, withFolders: Bool) -> [Track] {
+    var out: [Track] = []
+    if withFolders {
+        for sub in subfolders(dir) {
+            let t = Track(url: sub)
+            t.isFolder = true
+            out.append(t)
+        }
+    }
+    return out + folderTracks(dir)
 }
 
 /// Audio files, cue sheets expanded into virtual tracks, and playlist entries.

@@ -74,7 +74,11 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
 
     private func buildContent(in win: NSWindow) {
         tree.onSelect = { [weak self] url in self?.openFolder(url) }
-        table.onActivate = { [weak self] row in self?.player.playFolder(row: row) }
+        table.onActivate = { [weak self] row in
+            guard let self, self.player.tracks.indices.contains(row) else { return }
+            let t = self.player.tracks[row]
+            if t.isFolder { self.openFolder(t.url); self.tree.select(t.url) } else { self.player.playFolder(row: row) }
+        }
         table.onSelectionChange = { [weak self] in self?.updateStatus() }
         table.onSort = { [weak self] key, desc in
             self?.player.sortFolder(by: key, descending: desc)
@@ -253,7 +257,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
 
     /// Load a folder: list it at once, then fill in tags on a background queue.
     func openFolder(_ url: URL) {
-        let rows = folderTracks(url)
+        let rows = folderRows(url, withFolders: player.settings.foldersInList)
         player.setFolder(url, tracks: rows)
         recordHistory(url)
         table.setTracks(rows)

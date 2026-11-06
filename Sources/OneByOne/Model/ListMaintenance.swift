@@ -58,7 +58,7 @@ extension PlayerController {
     @discardableResult
     func refreshFolderIfChanged() -> Bool {
         guard !usesPlaylist, let folder else { return false }
-        let fresh = OneByOne.folderTracks(folder)
+        let fresh = folderRows(folder, withFolders: settings.foldersInList)
         let before = folderTracks.map(key)
         let after = fresh.map(key)
         guard before != after else { return false }
