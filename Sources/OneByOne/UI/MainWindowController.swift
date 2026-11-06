@@ -13,6 +13,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     private var ticker: Timer?
     private weak var playPauseItem: NSToolbarItem?
     private var seeking = false
+    private var infoWindows: [TrackInfoWindow] = []
 
     private enum ItemID {
         static let tree = NSToolbarItem.Identifier("tree")
@@ -363,5 +364,18 @@ extension MainWindowController {
 extension MainWindowController {
     @objc func searchFieldChanged(_ sender: NSSearchField) {
         searchChanged(sender.stringValue)
+    }
+}
+
+extension MainWindowController {
+    /// Track info for the selected row, or the track being heard.
+    @objc func showTrackInfo() {
+        let row = table.selectedRow ?? player.heard
+        guard let row, player.tracks.indices.contains(row) else { return }
+        let info = TrackInfoWindow(track: player.tracks[row])
+        info.onSaved = { [weak self] _ in self?.table.reload() }
+        infoWindows.append(info)
+        info.showWindow(nil)
+        info.window?.center()
     }
 }
