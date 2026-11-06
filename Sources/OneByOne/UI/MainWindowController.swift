@@ -17,6 +17,9 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     var infoWindows: [TrackInfoWindow] = []
     var logWindows: [NSWindowController] = []
     var listsSplit: NSSplitView?
+    var keyMonitor: Any?
+    var findWindow: FindFilesWindow?
+    weak var searchField: NSSearchField?
     var coverContainer: NSView?
     var coverImage: NSImageView?
     var autosaveTimer: Timer?
@@ -52,8 +55,11 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         buildContent(in: win)
         buildToolbar(for: win)
         wirePlayer()
+        installKeyMonitor()
+        player.onQuitRequested = { NSApp.terminate(nil) }
         if player.settings.httpEnabled { toggleRemote() }
         applySettings()
+        applyCompact()
         ticker = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
             self?.tick()
         }
@@ -67,6 +73,10 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         tree.onSelect = { [weak self] url in self?.openFolder(url) }
         table.onActivate = { [weak self] row in self?.player.playFolder(row: row) }
         table.onSelectionChange = { [weak self] in self?.updateStatus() }
+        table.onSort = { [weak self] key, desc in
+            self?.player.sortFolder(by: key, descending: desc)
+            self?.table.setTracks(self?.player.folderTracks ?? [])
+        }
 
         let treeVC = NSViewController()
         treeVC.view = makeSidebar()
@@ -194,6 +204,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         case ItemID.shuffle: button("shuffle", "Shuffle", #selector(toggleShuffle))
         case ItemID.search:
             let field = NSSearchField(frame: NSRect(x: 0, y: 0, width: 180, height: 22))
+            searchField = field
             field.placeholderString = "Find in list"
             field.target = self
             field.action = #selector(searchFieldChanged(_:))

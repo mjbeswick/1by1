@@ -5,26 +5,31 @@ final class PlayerController {
     let engine = Engine()
     var settings: Settings
 
-    private(set) var folder: URL?
-    private(set) var folderTracks: [Track] = []
+    var folder: URL?
+    var folderTracks: [Track] = []
     /// Queued tracks from any folder. Played in order when `usesPlaylist` is set.
-    private(set) var playlist: [Track] = []
-    private(set) var usesPlaylist = false
+    var playlist: [Track] = []
+    var usesPlaylist = false
 
     /// The list playback walks: the playlist or the current folder.
     var tracks: [Track] { usesPlaylist ? playlist : folderTracks }
     /// Row being heard. `nil` when stopped.
-    private(set) var heard: Int?
+    var heard: Int?
     /// Last row heard. Kept after the track ends, for end-of-track handling.
-    private var lastHeard: Int?
+    var lastHeard: Int?
     /// Rows handed to the engine and not yet heard. The head is heard next.
-    private var fed: [Int] = []
+    var fed: [Int] = []
     /// Row the gapless feeder is on.
-    private var feedCursor: Int?
+    var feedCursor: Int?
     /// Saved row and position for Space after a restart. Cleared when playback starts.
-    private(set) var pendingResume: (row: Int, seconds: Double)?
+    var pendingResume: (row: Int, seconds: Double)?
     /// Intro scan: seconds per track and when the current one started.
-    private(set) var intro: (perTrack: Double, started: Date)?
+    var intro: (perTrack: Double, started: Date)?
+
+    /// Set by Quit After Track. The window quits when the next track would start.
+    var quitAfterTrack = false
+    /// The app should quit now (quit-after-track fired).
+    var onQuitRequested: (() -> Void)?
 
     var repeatMode: Repeat { didSet { settings.repeatMode = repeatMode; save() } }
     var shuffle: Bool { didSet { settings.shuffle = shuffle; save() } }
@@ -229,6 +234,12 @@ final class PlayerController {
     private func trackChanged() {
         guard !fed.isEmpty else { return }
         let row = fed.removeFirst()
+        if quitAfterTrack, heard != nil {
+            quitAfterTrack = false
+            engine.stop()
+            onQuitRequested?()
+            return
+        }
         heard = row
         lastHeard = row
         if let t = heardTrack {

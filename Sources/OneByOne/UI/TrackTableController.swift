@@ -8,6 +8,8 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
     private var heardRow: Int?
     var onActivate: ((Int) -> Void)?
     var onSelectionChange: (() -> Void)?
+    /// Header click: column key and direction.
+    var onSort: ((SortKey, Bool) -> Void)?
 
     init(autosaveName: String) {
         view = NSScrollView()
@@ -21,6 +23,9 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
             c.title = title
             c.width = width
             c.minWidth = 40
+            if let key = SortKey(rawValue: id) {
+                c.sortDescriptorPrototype = NSSortDescriptor(key: key.rawValue, ascending: true)
+            }
             table.addTableColumn(c)
         }
         table.dataSource = self
@@ -39,6 +44,10 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
     }
 
     var selectedRows: IndexSet { table.selectedRowIndexes }
+
+    var selectedRowsIfAny: IndexSet? {
+        table.selectedRowIndexes.isEmpty ? nil : table.selectedRowIndexes
+    }
 
     var selectedRow: Int? {
         let r = table.selectedRow
@@ -123,6 +132,11 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
 
     func tableViewSelectionDidChange(_ notification: Notification) {
         onSelectionChange?()
+    }
+
+    func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
+        guard let d = tableView.sortDescriptors.first, let key = d.key.flatMap(SortKey.init(rawValue:)) else { return }
+        onSort?(key, !d.ascending)
     }
 }
 

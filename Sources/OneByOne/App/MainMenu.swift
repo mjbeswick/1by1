@@ -43,6 +43,15 @@ enum MainMenu {
         play.addItem(.separator())
         let log = play.addItem(withTitle: "Track Log", action: #selector(MainWindowController.showTrackLog), keyEquivalent: "l")
         log.keyEquivalentModifierMask = [.command, .shift]
+        play.addItem(.separator())
+        play.addItem(withTitle: "Mute", action: #selector(MainWindowController.toggleMute), keyEquivalent: "m")
+            .keyEquivalentModifierMask = [.control]
+        let quitAfter = play.addItem(withTitle: "Quit After This Track", action: #selector(MainWindowController.quitAfterTrack), keyEquivalent: "Q")
+        quitAfter.keyEquivalentModifierMask = [.control, .shift]
+        let find = file.addItem(withTitle: "Find Files...", action: #selector(MainWindowController.findFiles), keyEquivalent: functionKey(NSF3FunctionKey))
+        find.keyEquivalentModifierMask = []
+        let focus = play.addItem(withTitle: "Find in List", action: #selector(MainWindowController.focusSearch), keyEquivalent: "f")
+        focus.keyEquivalentModifierMask = [.control]
         play.addItem(withTitle: "Repeat", action: #selector(MainWindowController.cycleRepeat), keyEquivalent: "r")
             .keyEquivalentModifierMask = [.control]
         play.addItem(withTitle: "Shuffle", action: #selector(MainWindowController.toggleShuffle), keyEquivalent: "p")
@@ -51,6 +60,11 @@ enum MainMenu {
 
         let view = NSMenu(title: "View")
         view.addItem(withTitle: "Show Folder Tree", action: #selector(MainWindowController.toggleTree), keyEquivalent: functionKey(NSF4FunctionKey))
+        view.addItem(.separator())
+        view.addItem(withTitle: "Compact View", action: #selector(MainWindowController.toggleCompact), keyEquivalent: functionKey(NSF7FunctionKey))
+        view.addItem(withTitle: "Playlist View", action: #selector(MainWindowController.togglePlaylistView), keyEquivalent: functionKey(NSF5FunctionKey))
+            .keyEquivalentModifierMask = [.shift]
+        view.addItem(withTitle: "Reload Folder", action: #selector(MainWindowController.reloadFolder), keyEquivalent: functionKey(NSF5FunctionKey))
         bar.addItem(submenu: view, title: "View")
 
         let remoteItem = NSMenuItem(title: "Start HTTP Remote", action: #selector(MainWindowController.toggleRemote), keyEquivalent: "R")
