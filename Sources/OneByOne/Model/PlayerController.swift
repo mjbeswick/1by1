@@ -64,8 +64,13 @@ final class PlayerController {
         if engine.state == .stopped, let p = pendingResume { return p.seconds }
         return engine.position
     }
-    var duration: Double? { heard.flatMap { tracks.indices.contains($0) ? tracks[$0].duration : nil } }
-    var heardTrack: Track? { heard.flatMap { tracks.indices.contains($0) ? tracks[$0] : nil } }
+    var duration: Double? { playingTrack?.duration }
+    /// The track being heard. Kept when the folder changes mid-track.
+    var heardTrack: Track? { playingTrack }
+    /// Set by the engine's track change, cleared when playback ends or stops.
+    private(set) var playingTrack: Track?
+    /// Folder changed during playback. The next folder's first track starts when this one ends.
+    private var pendingFolderStart = false
 
     func save() { settings.save() }
 
@@ -73,7 +78,15 @@ final class PlayerController {
 
     /// Replace the list with `tracks` from `folder`. Playback stops, since list indexes change.
     func setFolder(_ url: URL, tracks newTracks: [Track]) {
-        if engine.state != .stopped { stop() }
+        if engine.state != .stopped {
+            // Playback continues. The list indexes of the old folder no longer apply, so the
+            // track in progress is detached from them and plays to its end.
+            heard = nil
+            lastHeard = nil
+            fed = []
+            feedCursor = nil
+            pendingFolderStart = true
+        }
         folder = url
         folderTracks = newTracks
         usesPlaylist = false
@@ -158,6 +171,8 @@ final class PlayerController {
     private func hardStop() {
         engine.stop()
         engine.volume = settings.muted ? 0 : settings.volume
+        playingTrack = nil
+        pendingFolderStart = false
         heard = nil
         fed = []
         feedCursor = nil
@@ -166,6 +181,11 @@ final class PlayerController {
     }
 
     func next() {
+        // Playing a track from a folder that has since changed: go to the top of the new list.
+        if heard == nil, playingTrack != nil, !tracks.isEmpty {
+            playFolder(row: 0)
+            return
+        }
         guard let cur = heard ?? feedCursor ?? lastHeard,
               let n = nextIndex(count: tracks.count, cur: cur, repeat: repeatMode) else {
             stop()
@@ -199,9 +219,10 @@ final class PlayerController {
 
     /// Seek inside the heard track. Rebuilds the gapless queue after the new position.
     func seek(to seconds: Double) {
-        guard let row = heard else { return }
-        fed = [row]
-        feedCursor = row
+        if let row = heard {
+            fed = [row]
+            feedCursor = row
+        }
         engine.seek(to: seconds)
         onChange?()
     }
@@ -267,6 +288,7 @@ final class PlayerController {
             return
         }
         let nowPlaying = tracks[row]
+        playingTrack = nowPlaying
         heard = row
         lastHeard = row
         if settings.removePlayed, !usesPlaylist, let p = previous, p != row, folderTracks.indices.contains(p) {
@@ -289,6 +311,14 @@ final class PlayerController {
         heard = nil
         fed = []
         feedCursor = nil
+        if pendingFolderStart {
+            pendingFolderStart = false
+            playingTrack = nil
+            onChange?()
+            if !tracks.isEmpty { playFolder(row: 0) }
+            return
+        }
+        playingTrack = nil
         onChange?()
         // Without gapless the next track starts here, after a short gap.
         if !settings.gapless, let last = lastHeard, settings.oneTrack == false,
