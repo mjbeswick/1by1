@@ -115,8 +115,8 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         cell.textField?.alignment = alignRight ? .right : .left
         let heard = row == heardRow
         cell.textField?.font = heard ? .boldSystemFont(ofSize: 13) : .systemFont(ofSize: 13)
-        // No explicit colour: AppKit draws the text white on a selected row by itself.
-        cell.textField?.textColor = nil
+        // Set the colour for the row's state. White on a selected row, the normal label colour otherwise.
+        cell.textField?.textColor = table.isRowSelected(row) ? .alternateSelectedControlTextColor : .labelColor
         return cell
     }
 
@@ -137,9 +137,10 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
-        // Repaint the now-playing row so its colour follows the selection.
-        if let r = heardRow, r < rows.count {
-            table.reloadData(forRowIndexes: IndexSet(integer: r),
+        // Repaint the visible rows so each text colour follows the selection.
+        let visible = table.rows(in: table.visibleRect)
+        if visible.length > 0 {
+            table.reloadData(forRowIndexes: IndexSet(integersIn: visible.location..<(visible.location + visible.length)),
                              columnIndexes: IndexSet(integersIn: 0..<table.numberOfColumns))
         }
         onSelectionChange?()
