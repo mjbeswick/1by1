@@ -146,6 +146,13 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         listsSplit = lists
         rebuildLists()
         lists.translatesAutoresizingMaskIntoConstraints = false
+        // The lists take all the height the transport and status rows leave. Without this the
+        // split collapses to zero height and the track list is invisible.
+        lists.setContentHuggingPriority(.defaultLow, for: .vertical)
+        lists.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        lists.heightAnchor.constraint(greaterThanOrEqualToConstant: 120).isActive = true
+        transport.setContentHuggingPriority(.required, for: .vertical)
+        statusLabel.setContentHuggingPriority(.required, for: .vertical)
         for v in [lists, transport, separator, statusLabel] as [NSView] {
             v.translatesAutoresizingMaskIntoConstraints = false
             root.addSubview(v)
