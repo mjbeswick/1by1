@@ -99,7 +99,7 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         var text: String
         var alignRight = false
         switch col.identifier.rawValue {
-        case "name": text = t.display
+        case "name": text = (row == heardRow ? "▶ " : "") + t.display
         case "length": text = t.duration.map { clock($0) } ?? ""; alignRight = true
         case "size":
             text = sizeText(t.size)
@@ -115,10 +115,8 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         cell.textField?.alignment = alignRight ? .right : .left
         let heard = row == heardRow
         cell.textField?.font = heard ? .boldSystemFont(ofSize: 13) : .systemFont(ofSize: 13)
-        // On a selected row the accent blue would vanish into the selection blue, so use white there.
-        let selected = table.isRowSelected(row)
-        cell.textField?.textColor = selected ? .alternateSelectedControlTextColor
-            : heard ? .controlAccentColor : .labelColor
+        // No explicit colour: AppKit draws the text white on a selected row by itself.
+        cell.textField?.textColor = nil
         return cell
     }
 
