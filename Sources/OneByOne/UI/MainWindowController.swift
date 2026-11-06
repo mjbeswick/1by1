@@ -3,19 +3,19 @@ import AppKit
 /// Main window: folder tree on the left, track list and transport on the right.
 final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindowDelegate {
     let player: PlayerController
-    private let split = NSSplitView()
     private let tree = FolderTreeController()
     private let table = TrackTableController()
-    private let seek = NSSlider(value: 0, minValue: 0, maxValue: 1, target: nil, action: nil)
+    private let seekSlider = NSSlider(value: 0, minValue: 0, maxValue: 1, target: nil, action: nil)
     private let timeLabel = NSTextField(labelWithString: "0:00 / 0:00")
-    private let volume = NSSlider(value: 1, minValue: 0, maxValue: 1, target: nil, action: nil)
-    private let status = NSTextField(labelWithString: "")
+    private let volumeSlider = NSSlider(value: 1, minValue: 0, maxValue: 1, target: nil, action: nil)
+    private let statusLabel = NSTextField(labelWithString: "")
+    private var splitController: NSSplitViewController?
     private var ticker: Timer?
     private weak var playPauseItem: NSToolbarItem?
-    private weak var treeItem: NSToolbarItem?
     private var seeking = false
 
     private enum ItemID {
+        static let tree = NSToolbarItem.Identifier("tree")
         static let open = NSToolbarItem.Identifier("open")
         static let prev = NSToolbarItem.Identifier("prev")
         static let playPause = NSToolbarItem.Identifier("playPause")
@@ -23,22 +23,19 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         static let next = NSToolbarItem.Identifier("next")
         static let repeatMode = NSToolbarItem.Identifier("repeat")
         static let shuffle = NSToolbarItem.Identifier("shuffle")
-        static let tree = NSToolbarItem.Identifier("tree")
-        static let volume = NSToolbarItem.Identifier("volume")
     }
 
     init(player: PlayerController) {
         self.player = player
         let win = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 880, height: 560),
+            contentRect: NSRect(x: 0, y: 0, width: 1100, height: 680),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false)
         win.title = "1by1"
         win.setFrameAutosaveName("MainWindow")
-        win.titleVisibility = .visible
         win.toolbarStyle = .unified
-        win.minSize = NSSize(width: 520, height: 320)
+        win.minSize = NSSize(width: 560, height: 340)
         super.init(window: win)
         win.delegate = self
         buildContent(in: win)
@@ -53,72 +50,90 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
 
     // MARK: - Layout
 
-   private func buildContent(in win: NSWindow) {
+    private func buildContent(in win: NSWindow) {
         tree.onSelect = { [weak self] url in self?.openFolder(url) }
         table.onActivate = { [weak self] row in self?.player.play(row: row) }
         table.onSelectionChange = { [weak self] in self?.updateStatus() }
 
-        split.isVertical = true
-        split.dividerStyle = .thin
-        split.addArrangedSubview(tree.view)
-        split.addArrangedSubview(makeRight())
-        split.setHoldingPriority(NSLayoutConstraint.Priority(251), forSubviewAt: 0)
-        tree.view.widthAnchor.constraint(greaterThanOrEqualToConstant: 160).isActive = true
-        split.setPosition(220, ofDividerAt: 0)
+        let treeVC = NSViewController()
+        treeVC.view = tree.view
+        let contentVC = NSViewController()
+        contentVC.view = makeContentView()
 
-        split.translatesAutoresizingMaskIntoConstraints = false
-        win.contentView?.addSubview(split)
-        NSLayoutConstraint.activate([
-            split.leadingAnchor.constraint(equalTo: win.contentView!.leadingAnchor),
-            split.trailingAnchor.constraint(equalTo: win.contentView!.trailingAnchor),
-            split.topAnchor.constraint(equalTo: win.contentView!.topAnchor),
-            split.bottomAnchor.constraint(equalTo: win.contentView!.bottomAnchor),
-        ])
+        let split = NSSplitViewController()
+        let sidebar = NSSplitViewItem(sidebarWithViewController: treeVC)
+        sidebar.minimumThickness = 160
+        sidebar.maximumThickness = 420
+        sidebar.canCollapse = true
+        sidebar.isCollapsed = !player.settings.treeVisible
+        let content = NSSplitViewItem(viewController: contentVC)
+        content.minimumThickness = 320
+        split.addSplitViewItem(sidebar)
+        split.addSplitViewItem(content)
+        splitController = split
+        win.contentViewController = split
     }
 
-   private func makeRight() -> NSView {
-        let box = NSStackView()
-        box.orientation = .vertical
-        box.alignment = .leading
-        box.spacing = 0
-        box.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+    private func makeContentView() -> NSView {
+        let root = NSView()
 
-        let bar = NSStackView()
-        bar.orientation = .horizontal
-        bar.spacing = 8
-        bar.edgeInsets = NSEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
-        seek.target = self
-        seek.action = #selector(seekChanged(_:))
-        seek.isContinuous = true
-        seek.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        seekSlider.target = self
+        seekSlider.action = #selector(seekChanged(_:))
+        seekSlider.isContinuous = true
         timeLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         timeLabel.textColor = .secondaryLabelColor
-        volume.target = self
-        volume.action = #selector(volumeChanged(_:))
-        volume.widthAnchor.constraint(equalToConstant: 90).isActive = true
-        volume.doubleValue = Double(player.settings.volume)
-        bar.addArrangedSubview(seek)
-        bar.addArrangedSubview(timeLabel)
-        bar.addArrangedSubview(NSImageView(image: NSImage(systemSymbolName: "speaker.wave.2", accessibilityDescription: nil) ?? NSImage()))
-        bar.addArrangedSubview(volume)
+        volumeSlider.target = self
+        volumeSlider.action = #selector(volumeChanged(_:))
+        volumeSlider.doubleValue = Double(player.settings.volume)
+        volumeSlider.controlSize = .small
 
-        status.font = .systemFont(ofSize: 11)
-        status.textColor = .secondaryLabelColor
-        status.lineBreakMode = .byTruncatingTail
-        let statusBox = NSStackView(views: [status])
-        statusBox.edgeInsets = NSEdgeInsets(top: 3, left: 12, bottom: 3, right: 12)
+        let speaker = NSImageView(image: NSImage(systemSymbolName: "speaker.wave.2", accessibilityDescription: "Volume") ?? NSImage())
+        speaker.contentTintColor = .secondaryLabelColor
 
-        box.addArrangedSubview(table.view)
-        box.addArrangedSubview(bar)
-        box.addArrangedSubview(NSBox.separator())
-        box.addArrangedSubview(statusBox)
+        let transport = NSStackView(views: [seekSlider, timeLabel, speaker, volumeSlider])
+        transport.orientation = .horizontal
+        transport.spacing = 8
+        transport.edgeInsets = NSEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
+        seekSlider.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        volumeSlider.widthAnchor.constraint(equalToConstant: 96).isActive = true
+
+        statusLabel.font = .systemFont(ofSize: 11)
+        statusLabel.textColor = .secondaryLabelColor
+        statusLabel.lineBreakMode = .byTruncatingTail
+        statusLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        let separator = NSBox()
+        separator.boxType = .separator
+        separator.translatesAutoresizingMaskIntoConstraints = false
+
+        for v in [table.view, transport, separator, statusLabel] as [NSView] {
+            v.translatesAutoresizingMaskIntoConstraints = false
+            root.addSubview(v)
+        }
         table.view.setContentHuggingPriority(.defaultLow, for: .vertical)
-        table.view.widthAnchor.constraint(equalTo: box.widthAnchor).isActive = true
-        bar.widthAnchor.constraint(equalTo: box.widthAnchor).isActive = true
-        return box
+
+        NSLayoutConstraint.activate([
+            table.view.topAnchor.constraint(equalTo: root.topAnchor),
+            table.view.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            table.view.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            table.view.bottomAnchor.constraint(equalTo: transport.topAnchor),
+
+            transport.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            transport.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            transport.bottomAnchor.constraint(equalTo: separator.topAnchor),
+
+            separator.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            separator.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            separator.bottomAnchor.constraint(equalTo: statusLabel.topAnchor, constant: -3),
+
+            statusLabel.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
+            statusLabel.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
+            statusLabel.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -4),
+        ])
+        return root
     }
 
-   private func buildToolbar(for win: NSWindow) {
+    private func buildToolbar(for win: NSWindow) {
         let tb = NSToolbar(identifier: "main")
         tb.delegate = self
         tb.displayMode = .iconOnly
@@ -127,13 +142,13 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [ItemID.tree, ItemID.open, .flexibleSpace, ItemID.prev, ItemID.playPause, ItemID.stop, ItemID.next,
-         ItemID.repeatMode, ItemID.shuffle, .space, ItemID.volume]
+        [ItemID.tree, ItemID.open, ItemID.prev, ItemID.playPause, ItemID.stop, ItemID.next,
+         ItemID.repeatMode, ItemID.shuffle, .flexibleSpace, .space]
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         [ItemID.tree, ItemID.open, .flexibleSpace, ItemID.prev, ItemID.playPause, ItemID.stop, ItemID.next,
-         ItemID.repeatMode, ItemID.shuffle, .flexibleSpace]
+         ItemID.repeatMode, ItemID.shuffle]
     }
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier,
@@ -147,6 +162,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
             item.action = action
         }
         switch id {
+        case ItemID.tree: button("sidebar.left", "Folder Tree", #selector(toggleTree))
         case ItemID.open: button("folder", "Open Folder", #selector(openFolderPanel))
         case ItemID.prev: button("backward.end.fill", "Previous", #selector(previousTrack))
         case ItemID.playPause:
@@ -156,12 +172,6 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         case ItemID.next: button("forward.end.fill", "Next", #selector(nextTrack))
         case ItemID.repeatMode: button("repeat", "Repeat", #selector(cycleRepeat))
         case ItemID.shuffle: button("shuffle", "Shuffle", #selector(toggleShuffle))
-        case ItemID.tree:
-            button("sidebar.left", "Folder Tree", #selector(toggleTree))
-            treeItem = item
-        case ItemID.volume:
-            item.label = "Volume"
-            item.view = volume
         default: return nil
         }
         return item
@@ -169,9 +179,9 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
 
     // MARK: - Wiring
 
-   private func wirePlayer() {
+    private func wirePlayer() {
         player.onChange = { [weak self] in self?.refresh() }
-        player.onMessage = { [weak self] msg in self?.status.stringValue = msg }
+        player.onMessage = { [weak self] msg in self?.statusLabel.stringValue = msg }
         tree.setRoots(initialRoots())
         if let last = player.settings.lastFolder.map(URL.init(fileURLWithPath:)),
            FileManager.default.fileExists(atPath: last.path) {
@@ -182,7 +192,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         }
     }
 
-   private func initialRoots() -> [URL] {
+    private func initialRoots() -> [URL] {
         if !player.settings.roots.isEmpty {
             return player.settings.roots.map { URL(fileURLWithPath: $0) }
         }
@@ -225,7 +235,6 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     }
 
     @objc func playPausePressed() {
-        if player.engine.state == .stopped, table.selectedRow == nil, player.tracks.isEmpty { return }
         player.togglePause(selectedRow: table.selectedRow)
     }
 
@@ -244,17 +253,17 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     }
 
     @objc func toggleTree() {
-        let shown = !split.subviews[0].isHidden
-        split.subviews[0].isHidden = shown
-        player.settings.treeVisible = !shown
+        guard let item = splitController?.splitViewItems.first else { return }
+        item.animator().isCollapsed.toggle()
+        player.settings.treeVisible = item.isCollapsed == false
         player.save()
     }
 
     @objc func seekChanged(_ sender: NSSlider) {
         guard let d = player.duration, d > 0 else { return }
-        seeking = true
-        if NSApp.currentEvent?.type == .leftMouseUp { seeking = false }
-        player.seek(to: sender.doubleValue * d)
+        let end = NSApp.currentEvent?.type == .leftMouseUp
+        seeking = !end
+        if end { player.seek(to: sender.doubleValue * d) }
     }
 
     @objc func volumeChanged(_ sender: NSSlider) {
@@ -266,42 +275,31 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     /// Repaint everything that depends on playback state.
     func refresh() {
         let playing = player.isPlaying
-        let paused = player.isPaused
         playPauseItem?.image = NSImage(systemSymbolName: playing ? "pause.fill" : "play.fill",
                                        accessibilityDescription: playing ? "Pause" : "Play")
         table.setHeard(player.heard)
         if let t = player.heardTrack {
             window?.title = "1by1 - \(t.display)"
         }
-        if paused { status.stringValue = "Paused" }
+        if player.isPaused { statusLabel.stringValue = "Paused" }
         updateStatus()
         tick()
     }
 
-   private func tick() {
+    private func tick() {
         guard let d = player.duration, d > 0 else {
             timeLabel.stringValue = clock(player.position) + " / " + (player.heard == nil ? "0:00" : "--:--")
-            seek.doubleValue = 0
+            seekSlider.doubleValue = 0
             return
         }
         let pos = min(player.position, d)
         timeLabel.stringValue = "\(clock(pos)) / \(clock(d))"
-        if !seeking { seek.doubleValue = pos / d }
+        if !seeking { seekSlider.doubleValue = pos / d }
     }
 
-   private func updateStatus() {
-        if player.heard == nil, !player.tracks.isEmpty {
-            let folder = player.folder?.lastPathComponent ?? ""
-            status.stringValue = "\(player.tracks.count) tracks in \(folder)"
-        }
-    }
-}
-
-private extension NSBox {
-    /// Hairline separator used between the transport bar and the status line.
-    static func separator() -> NSBox {
-        let b = NSBox()
-        b.boxType = .separator
-        return b
+    private func updateStatus() {
+        guard player.heard == nil, !player.tracks.isEmpty else { return }
+        let folder = player.folder?.lastPathComponent ?? ""
+        statusLabel.stringValue = "\(player.tracks.count) tracks in \(folder)"
     }
 }
