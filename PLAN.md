@@ -39,7 +39,7 @@ Core port done. Settings pages and behaviors ported. Remaining gaps listed under
 ## Not yet applied
 
 - Removed from the settings window because nothing reads them: Proxy (the app makes no outbound requests), No label edit, File info menu. Their values stay in the settings file.
-- Not notarized: no Developer ID certificate, so Gatekeeper rejects the app on other Macs. The bundle loads only its own libraries (checked with DYLD_PRINT_LIBRARIES), so it is relocatable. Size is 38 MB, mostly FFmpeg codecs pulled in by the Homebrew build.
+- Not notarized (blocked on the user): this Mac has only an "Apple Development" identity, which cannot notarize distribution builds. Needed: a "Developer ID Application" certificate, plus notarytool credentials (Apple ID with app-specific password, or an App Store Connect API key). Gatekeeper rejects the app until then. The bundle loads only its own libraries (checked with DYLD_PRINT_LIBRARIES), so it is relocatable. Size is 38 MB, mostly FFmpeg codecs pulled in by the Homebrew build.
 
 ## Verification
 
