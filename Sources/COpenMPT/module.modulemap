@@ -1,0 +1,4 @@
+module COpenMPT [system] {
+    header "shim.h"
+    export *
+}

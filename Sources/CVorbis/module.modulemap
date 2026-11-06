@@ -1,0 +1,4 @@
+module CVorbis [system] {
+    header "shim.h"
+    export *
+}
