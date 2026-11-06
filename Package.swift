@@ -8,12 +8,13 @@ let package = Package(
         .systemLibrary(name: "COpenMPT", pkgConfig: "libopenmpt"),
         .systemLibrary(name: "CVorbis", pkgConfig: "vorbisfile"),
         .systemLibrary(name: "CTagLib", pkgConfig: "taglib_c"),
+        .systemLibrary(name: "CFFmpeg", pkgConfig: "libavformat"),
         .executableTarget(
             name: "OneByOne",
-            dependencies: ["COpenMPT", "CVorbis", "CTagLib"],
+            dependencies: ["COpenMPT", "CVorbis", "CTagLib", "CFFmpeg"],
             path: "Sources/OneByOne",
             swiftSettings: [.swiftLanguageMode(.v5)],
-            linkerSettings: [.linkedLibrary("ogg")]
+            linkerSettings: [.linkedLibrary("ogg"), .linkedLibrary("avcodec"), .linkedLibrary("avutil"), .linkedLibrary("swresample")]
         ),
     ]
 )

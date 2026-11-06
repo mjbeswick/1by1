@@ -6,10 +6,9 @@ import Foundation
 let audioExtensions: Set<String> = [
     "mp1", "mp2", "mp3", "mpa", "mpga", "aac", "adts", "m4a", "m4b", "m4p", "m4r", "mp4",
     "flac", "ogg", "oga", "wav", "wave", "bwf", "aif", "aiff", "aifc", "caf",
+    "mkv", "mka", "webm", "opus",
 ]
 
-/// Container types Apple's stack does not decode here. Listed but not playable.
-let unsupportedExtensions: Set<String> = ["mkv", "mka", "webm"]
 
 /// Settings read by list text. Set from the settings window.
 var displayUsesTags = true
@@ -379,6 +378,8 @@ func decoderName(_ url: URL) -> String {
     case "ogg", "oga": return "Vorbis"
     case "aac", "adts", "m4a", "m4b", "m4p", "m4r", "mp4": return "AAC"
     case "caf": return "CAF"
+    case "mkv", "mka", "webm": return "Matroska"
+    case "opus": return "Opus"
     default: return "Audio"
     }
 }

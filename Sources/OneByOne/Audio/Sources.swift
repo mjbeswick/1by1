@@ -45,10 +45,15 @@ func openSource(_ url: URL) throws -> PCMSource {
     if moduleExtensions.contains(ext) {
         return try ModuleSource(url: url)
     }
+    if ext == "mkv" || ext == "mka" || ext == "webm" {
+        return try FFmpegSource(url: url)
+    }
     if ext == "ogg" || ext == "oga" {
         if let v = try? VorbisSource(url: url) { return v }
     }
-    return try AVFileSource(url: url)
+    if let av = try? AVFileSource(url: url) { return av }
+    // Opus in CAF, and anything else AVFoundation refuses: let FFmpeg try.
+    return try FFmpegSource(url: url)
 }
 
 // MARK: - AVFoundation
