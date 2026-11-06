@@ -1,21 +1,49 @@
 #!/bin/sh
-# Build a minimal macOS app bundle around the release binary.
+# Build dist/OneByOne.app: release binary, Homebrew dylibs copied into Frameworks,
+# install names rewritten to @rpath, ad hoc signed. Runs on macOS with Homebrew libs.
 set -e
 cd "$(dirname "$0")/.."
-cargo build --release
-APP=dist/1by1.app
+swift build -c release
+APP=dist/OneByOne.app
+BIN=.build/release/OneByOne
+FW="$APP/Contents/Frameworks"
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/presets" "$APP/Contents/Frameworks"
-cp target/release/onebyone "$APP/Contents/MacOS/1by1"
+mkdir -p "$APP/Contents/MacOS" "$FW" "$APP/Contents/Resources"
+cp "$BIN" "$APP/Contents/MacOS/OneByOne"
 cp assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
-cp vendor/projectm4/lib/libprojectM-4.4.1.8.dylib "$APP/Contents/Frameworks/"
-cp vendor/projectm4/lib/libprojectM-4-playlist.4.1.8.dylib "$APP/Contents/Frameworks/"
-ln -s libprojectM-4.4.1.8.dylib "$APP/Contents/Frameworks/libprojectM-4.4.dylib"
-ln -s libprojectM-4-playlist.4.1.8.dylib "$APP/Contents/Frameworks/libprojectM-4-playlist.4.dylib"
-cp vendor/projectm4/LICENSE.txt "$APP/Contents/Resources/projectM-LICENSE.txt"
-if [ -d /opt/homebrew/share/projectM/presets ]; then
-    cp -R /opt/homebrew/share/projectM/presets/. "$APP/Contents/Resources/presets/"
-fi
+
+# Walk Homebrew dependencies until none are left, copying each dylib once.
+homebrew_deps() {
+    otool -L "$1" | awk 'NR>1 {print $1}' | grep '^/opt/homebrew/' || true
+}
+queue="$BIN"
+seen=""
+while [ -n "$queue" ]; do
+    next=""
+    for f in $queue; do
+        for dep in $(homebrew_deps "$f"); do
+            real=$(realpath "$dep")
+            name=$(basename "$real")
+            case " $seen " in *" $name "*) continue ;; esac
+            seen="$seen $name"
+            cp "$real" "$FW/$name"
+            chmod u+w "$FW/$name"
+            install_name_tool -id "@rpath/$name" "$FW/$name"
+            next="$next $FW/$name"
+        done
+    done
+    queue="$next"
+done
+
+# Point every reference at the bundled copy.
+for f in "$APP/Contents/MacOS/OneByOne" "$FW"/*.dylib; do
+    for dep in $(homebrew_deps "$f"); do
+        name=$(basename "$(realpath "$dep")")
+        install_name_tool -change "$dep" "@rpath/$name" "$f"
+    done
+done
+install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/OneByOne" 2>/dev/null || true
+
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -23,14 +51,15 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <dict>
     <key>CFBundleName</key><string>1by1</string>
     <key>CFBundleDisplayName</key><string>1by1</string>
-    <key>CFBundleIdentifier</key><string>de.example.onebyone</string>
-    <key>CFBundleExecutable</key><string>1by1</string>
+    <key>CFBundleIdentifier</key><string>dev.onebyone.app</string>
+    <key>CFBundleExecutable</key><string>OneByOne</string>
     <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>0.1</string>
-    <key>CFBundleVersion</key><string>1</string>
-    <key>LSMinimumSystemVersion</key><string>11.0</string>
+    <key>CFBundleShortVersionString</key><string>0.2</string>
+    <key>CFBundleVersion</key><string>2</string>
+    <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>NSHighResolutionCapable</key><true/>
+    <key>NSPrincipalClass</key><string>NSApplication</string>
     <key>CFBundleDocumentTypes</key>
     <array>
       <dict>
@@ -43,5 +72,6 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </dict>
 </plist>
 PLIST
-codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || true
+
+codesign --force --deep -s - "$APP"
 echo "built $APP"
