@@ -18,6 +18,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     var logWindows: [NSWindowController] = []
     var listsSplit: NSSplitView?
     var keyMonitor: Any?
+    var wheelMonitor: Any?
     var highPriorityToken: NSObjectProtocol?
     var statusItem: NSStatusItem?
     var findWindow: FindFilesWindow?

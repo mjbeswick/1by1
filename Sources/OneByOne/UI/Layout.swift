@@ -84,6 +84,7 @@ extension MainWindowController {
             item.isCollapsed = !s.showTree
         }
         volumeSlider.controlSize = s.largerSliders ? .regular : .small
+        for item in window?.toolbar?.items ?? [] { item.toolTip = s.showTooltips ? item.label : nil }
         tree.applyStyle(rowSpacing: s.treeSpacing, bigger: s.biggerTree, lines: s.treeLines)
         rebuildLists()
         updateCover()

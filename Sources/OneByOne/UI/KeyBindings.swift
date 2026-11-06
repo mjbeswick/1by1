@@ -8,6 +8,17 @@ extension MainWindowController {
             guard let self else { return event }
             return self.handleKey(event) ? nil : event
         }
+        wheelMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+            guard let self, self.player.settings.wheelVolume else { return event }
+            // Wheel over the transport line changes volume. Elsewhere it scrolls.
+            guard let content = self.splitController?.view, let win = self.window,
+                  event.window === win else { return event }
+            let p = content.convert(event.locationInWindow, from: nil)
+            guard p.y < 60 else { return event }
+            let step = Float(event.scrollingDeltaY) * (self.player.settings.fineVolume ? 0.001 : 0.005)
+            self.player.setVolume(self.player.settings.volume + step)
+            return nil
+        }
     }
 
     /// Returns true when the key was handled.
@@ -17,6 +28,9 @@ extension MainWindowController {
         let mods = e.modifierFlags.intersection([.command, .control, .option, .shift])
         let s = player.settings
         switch (e.keyCode, mods) {
+        case (12, [.control]):                                                   // Ctrl-Q quits
+            NSApp.terminate(nil)
+            return true
         case (53, []) where s.escQuit:                                           // Escape quits when set
             NSApp.terminate(nil)
             return true

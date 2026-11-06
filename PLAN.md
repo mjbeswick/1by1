@@ -40,15 +40,13 @@ Core port done. Settings pages and behaviors ported. Remaining gaps listed under
 
 Stored in settings and shown in the settings window, but no effect yet:
 - Folders in list (show subfolder rows in the track list).
-- Scroll-wheel options: volume, folder tree, lists.
+- Scroll-wheel: volume works over the transport line. Folder tree and lists are not changed.
 - Tab moves between toolbar and lists.
-- Tooltips toggle (toolbar tooltips always on).
 - Tree style "explorer", no label edit, file info menu.
 - Skip lists in search, auto search directories, continue in focused list.
 - Always scan tags (folders are scanned in the background anyway).
 - Proxy (the app makes no outbound requests, so this has no use yet).
 - Themes: the Rust build's named themes are not in settings. The app follows the system light and dark appearance.
-- Ctrl-Q quit shortcut (Command-Q quits).
 
 Known limits:
 - Ogg Vorbis verified only with a file encoded by libvorbisenc here.
