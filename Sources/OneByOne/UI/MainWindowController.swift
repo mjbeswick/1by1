@@ -159,15 +159,16 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         }
         playlistTable.view.heightAnchor.constraint(greaterThanOrEqualToConstant: 80).isActive = true
 
+        // Seek and volume sit at the top, then the lists, then the status line.
         NSLayoutConstraint.activate([
-            lists.topAnchor.constraint(equalTo: root.topAnchor),
-            lists.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            lists.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            lists.bottomAnchor.constraint(equalTo: transport.topAnchor),
-
+            transport.topAnchor.constraint(equalTo: root.topAnchor),
             transport.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             transport.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            transport.bottomAnchor.constraint(equalTo: separator.topAnchor),
+            transport.bottomAnchor.constraint(equalTo: lists.topAnchor),
+
+            lists.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            lists.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            lists.bottomAnchor.constraint(equalTo: separator.topAnchor),
 
             separator.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             separator.trailingAnchor.constraint(equalTo: root.trailingAnchor),
@@ -248,6 +249,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         tree.setRoots(initialRoots())
         let last = player.settings.lastFolder.map(URL.init(fileURLWithPath:))
         if let last, player.settings.restoreList, !player.settings.startInBase, FileManager.default.fileExists(atPath: last.path) {
+            // A folder outside the tree roots becomes a root, so the tree can show it.
+            if !tree.roots.contains(where: { last.path.hasPrefix($0.path) }) { tree.add(root: last) }
             openFolder(last)
             tree.select(last)
         } else if let first = tree.roots.first {
@@ -260,8 +263,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         if !player.settings.roots.isEmpty {
             return player.settings.roots.map { URL(fileURLWithPath: $0) }
         }
-        let music = FileManager.default.urls(for: .musicDirectory, in: .userDomainMask).first
-        return [music ?? FileManager.default.homeDirectoryForCurrentUser]
+        // The home folder is the tree root, so its subfolders show as the tree.
+        return [FileManager.default.homeDirectoryForCurrentUser]
     }
 
     /// Load a folder: list it at once, then fill in tags on a background queue.

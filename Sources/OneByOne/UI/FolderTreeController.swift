@@ -73,6 +73,13 @@ final class FolderTreeController: NSObject, NSOutlineViewDataSource, NSOutlineVi
 
     /// Select `url` in the tree if it is visible.
     func select(_ url: URL) {
+        // Expand each ancestor on the way down, so the target row exists.
+        var level = rootNodes
+        while let node = level.first(where: { url.path == $0.url.path || url.path.hasPrefix($0.url.path + "/") }),
+              node.url != url {
+            outline.expandItem(node)
+            level = node.children
+        }
         for row in 0..<outline.numberOfRows {
             if let n = outline.item(atRow: row) as? FolderNode, n.url == url {
                 outline.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
