@@ -59,13 +59,16 @@ extension PlayerController {
     func refreshFolderIfChanged() -> Bool {
         guard !usesPlaylist, let folder else { return false }
         let fresh = folderRows(folder, withFolders: settings.foldersInList)
-        let before = folderTracks.map(key)
-        let after = fresh.map(key)
+        // Compare membership, not order. The list may be sorted by something other than name.
+        let before = Set(folderTracks.map(key))
+        let after = Set(fresh.map(key))
         guard before != after else { return false }
         // Keep info already read for unchanged files.
         let known = Dictionary(folderTracks.map { (key($0), $0) }, uniquingKeysWith: { a, _ in a })
         for t in fresh { if let old = known[key(t)], let info = old.info { t.info = info } }
         replaceFolderTracks(fresh)
+        // Re-apply the chosen sort so new or removed files keep it.
+        if settings.sort != .name || settings.sortDesc { sortFolder(by: settings.sort, descending: settings.sortDesc) }
         return true
     }
 }

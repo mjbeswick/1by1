@@ -305,6 +305,11 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
             rows = folderRows(found, withFolders: player.settings.foldersInList)
         }
         player.setFolder(url, tracks: rows)
+        // The header keeps its saved sort indicator across launches. Apply that sort to the rows too.
+        if player.settings.sort != .name || player.settings.sortDesc {
+            player.sortFolder(by: player.settings.sort, descending: player.settings.sortDesc)
+            rows = player.folderTracks
+        }
         recordHistory(url)
         table.setTracks(rows)
         if let idx = player.resumeRow {
