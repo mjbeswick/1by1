@@ -310,13 +310,23 @@ func scanInfo(_ url: URL) -> AudioInfo? {
         info.tags = readTags(tag)
     }
     // AVFoundation gives an exact length for most formats. Prefer it over TagLib's integer seconds.
-    if let f = try? AVAudioFile(forReading: url), f.length > 0 {
-        info.duration = Double(f.length) / f.processingFormat.sampleRate
+    if let f = try? AVAudioFile(forReading: url) {
+        let fmt = f.processingFormat
+        if f.length > 0 { info.duration = Double(f.length) / fmt.sampleRate }
+        info.sampleRate = info.sampleRate ?? fmt.sampleRate
+        info.channels = info.channels ?? Int(fmt.channelCount)
     }
     // Some files report no length here (Opus in CAF). Ask the decoder instead.
     if info.duration == nil, let d = estimatedDuration(url) {
         info.duration = d
     }
+    // Containers neither TagLib nor AVFoundation reads (MKV, WebM): take the properties from the decoder.
+    if info.sampleRate == nil || info.duration == nil, let src = try? openSource(url) {
+        info.sampleRate = info.sampleRate ?? src.format.sampleRate
+        info.channels = info.channels ?? Int(src.format.channelCount)
+        info.duration = info.duration ?? src.duration
+    }
+    info.format = "\(info.decoder) (\(url.pathExtension.uppercased()))"
     return info
 }
 
