@@ -4,8 +4,8 @@ import AppKit
 final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindowDelegate {
     let player: PlayerController
     let tree = FolderTreeController()
-    let table = TrackTableController(autosaveName: "TrackTable")
-    let playlistTable = TrackTableController(autosaveName: "PlaylistTable")
+    let table = TrackTableController(autosaveName: "TrackTableV2")
+    let playlistTable = TrackTableController(autosaveName: "PlaylistTableV2")
     let seekSlider = NSSlider(value: 0, minValue: 0, maxValue: 1, target: nil, action: nil)
     let timeLabel = NSTextField(labelWithString: "0:00 / 0:00")
     let volumeSlider = NSSlider(value: 1, minValue: 0, maxValue: 1, target: nil, action: nil)
@@ -162,23 +162,29 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         lists.heightAnchor.constraint(greaterThanOrEqualToConstant: 120).isActive = true
         transport.setContentHuggingPriority(.required, for: .vertical)
         statusLabel.setContentHuggingPriority(.required, for: .vertical)
-        // A vertical stack: seek and volume on top, the lists filling the middle, status at the bottom.
-        let column = NSStackView(views: [transport, separator, lists, statusBox])
-        column.orientation = .vertical
-        column.alignment = .leading
-        column.spacing = 0
-        column.distribution = .fill
-        column.translatesAutoresizingMaskIntoConstraints = false
-        root.addSubview(column)
+        // Seek and volume on top, status at the bottom, the lists take the rest.
+        // A stack view gave the transport row most of the height, so the layout is pinned by hand.
+        for v in [transport, separator, lists, statusBox] {
+            v.translatesAutoresizingMaskIntoConstraints = false
+            root.addSubview(v)
+        }
+        transport.setContentHuggingPriority(.required, for: .vertical)
         NSLayoutConstraint.activate([
-            column.topAnchor.constraint(equalTo: root.topAnchor),
-            column.bottomAnchor.constraint(equalTo: root.bottomAnchor),
-            column.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            column.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            transport.widthAnchor.constraint(equalTo: column.widthAnchor),
-            separator.widthAnchor.constraint(equalTo: column.widthAnchor),
-            lists.widthAnchor.constraint(equalTo: column.widthAnchor),
-            statusBox.widthAnchor.constraint(equalTo: column.widthAnchor),
+            transport.topAnchor.constraint(equalTo: root.topAnchor),
+            transport.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            transport.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            transport.heightAnchor.constraint(equalToConstant: 40),
+            separator.topAnchor.constraint(equalTo: transport.bottomAnchor),
+            separator.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            separator.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            lists.topAnchor.constraint(equalTo: separator.bottomAnchor),
+            lists.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            lists.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            lists.bottomAnchor.constraint(equalTo: statusBox.topAnchor),
+            statusBox.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            statusBox.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            statusBox.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+            statusBox.heightAnchor.constraint(equalToConstant: 22),
         ])
         return root
     }
@@ -371,7 +377,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     private func tick() {
         periodicWork()
         guard let d = player.duration, d > 0 else {
-            timeLabel.stringValue = clock(player.position) + " / " + (player.heard == nil ? "0:00" : "--:--")
+            timeLabel.stringValue = player.heard == nil ? "0:00 / 0:00" : clock(player.position) + " / --:--"
             seekSlider.doubleValue = 0
             return
         }

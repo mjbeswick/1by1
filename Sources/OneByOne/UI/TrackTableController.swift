@@ -17,7 +17,7 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         view = NSScrollView()
         super.init()
         let columns: [(String, String, CGFloat)] = [
-            ("name", "Name", 300), ("length", "Length", 70), ("size", "Size", 80),
+            ("name", "Name", 280), ("length", "Length", 70), ("size", "Size", 150),
             ("type", "Type", 60), ("info", "Info", 240),
         ]
         for (id, title, width) in columns {
