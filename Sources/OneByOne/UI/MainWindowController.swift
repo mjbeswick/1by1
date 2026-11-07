@@ -83,6 +83,18 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
             if t.isFolder { self.openFolder(t.url); self.tree.select(t.url) } else { self.player.playFolder(row: row) }
         }
         table.onSelectionChange = { [weak self] in self?.updateStatus() }
+        table.table.menuForRow = { [weak self] row in
+            guard let self else { return nil }
+            return self.trackMenu(row: row, tracks: self.player.tracks, inPlaylist: false)
+        }
+        playlistTable.table.menuForRow = { [weak self] row in
+            guard let self else { return nil }
+            return self.trackMenu(row: row, tracks: self.player.playlist, inPlaylist: true)
+        }
+        tree.outline.menuForRow = { [weak self] row in
+            guard let node = self?.tree.outline.item(atRow: row) as? FolderNode else { return nil }
+            return self?.treeMenu(url: node.url)
+        }
         table.onSort = { [weak self] key, desc in
             self?.player.sortFolder(by: key, descending: desc)
             self?.table.setTracks(self?.player.folderTracks ?? [])

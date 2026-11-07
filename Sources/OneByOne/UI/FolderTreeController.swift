@@ -20,7 +20,7 @@ final class FolderNode {
 /// Folder tree in an NSOutlineView. Lazy children, single selection.
 final class FolderTreeController: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
     let view: NSScrollView
-    let outline = NSOutlineView()
+    let outline = ContextOutlineView()
     private(set) var roots: [URL] = []
     private var rootNodes: [FolderNode] = []
     var onSelect: ((URL) -> Void)?

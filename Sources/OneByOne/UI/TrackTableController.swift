@@ -3,7 +3,7 @@ import AppKit
 /// Track list in an NSTableView. Rows come from the player's current folder.
 final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDelegate {
     let view: NSScrollView
-    let table = NSTableView()
+    let table = ContextTableView()
     private var rows: [Track] = []
     private var heardRow: Int?
     var onActivate: ((Int) -> Void)?
