@@ -79,16 +79,31 @@ extension MainWindowController {
         applyCompact()
     }
 
+    /// Compact view hides the sidebar, lists and status row. The transport row stays.
     func applyCompact() {
         let compact = player.settings.compact
-        splitController?.view.isHidden = compact
+        for v in compactHidden { v.isHidden = compact }
+        if compact { NSLayoutConstraint.deactivate(compactConstraints) } else { NSLayoutConstraint.activate(compactConstraints) }
+        splitController?.splitViewItems.first?.isCollapsed = compact || !player.settings.showTree
         guard let win = window else { return }
+        // The chrome is the title bar and toolbar. Compact keeps only the transport row under it.
+        let chrome = win.frameRect(forContentRect: NSRect(x: 0, y: 0, width: 100, height: 100)).height - 100
+        let transportHeight: CGFloat = 40
+        win.minSize = NSSize(width: 560, height: compact ? chrome + transportHeight : 420)
+        let width = win.frame.width
         var frame = win.frame
-        let height: CGFloat = compact ? 0 : CGFloat(player.settings.winHeight)
-        let delta = height - frame.height
-        frame.size.height = compact ? 40 : max(340, height)
-        frame.origin.y -= (compact ? (frame.height - 40) : delta)
+        let newHeight = compact ? chrome + transportHeight : max(420, CGFloat(player.settings.winHeight))
+        frame.origin.y += frame.height - newHeight
+        frame.size.height = newHeight
         win.setFrame(frame, display: true, animate: false)
+        // Changing the panes can pull the width down with the fitting size. Put it back once layout settles.
+        DispatchQueue.main.async {
+            guard abs(win.frame.width - width) > 1 else { return }
+            var f = win.frame
+            f.origin.x += f.width - width
+            f.size.width = width
+            win.setFrame(f, display: true, animate: false)
+        }
     }
 
     @objc func toggleHTTP() {

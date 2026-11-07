@@ -17,6 +17,9 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     var infoWindows: [TrackInfoWindow] = []
     var logWindows: [NSWindowController] = []
     var listsSplit: NSSplitView?
+    /// Views hidden in compact view. The transport row stays.
+    var compactHidden: [NSView] = []
+    var compactConstraints: [NSLayoutConstraint] = []
     var keyMonitor: Any?
     var wheelMonitor: Any?
     var highPriorityToken: NSObjectProtocol?
@@ -159,32 +162,38 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         // split collapses to zero height and the track list is invisible.
         lists.setContentHuggingPriority(NSLayoutConstraint.Priority(1), for: .vertical)
         lists.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
-        lists.heightAnchor.constraint(greaterThanOrEqualToConstant: 120).isActive = true
+        let listsMin = lists.heightAnchor.constraint(greaterThanOrEqualToConstant: 120)
         transport.setContentHuggingPriority(.required, for: .vertical)
         statusLabel.setContentHuggingPriority(.required, for: .vertical)
         // Seek and volume on top, status at the bottom, the lists take the rest.
         // A stack view gave the transport row most of the height, so the layout is pinned by hand.
+        compactHidden = [separator, lists, statusBox]
         for v in [transport, separator, lists, statusBox] {
             v.translatesAutoresizingMaskIntoConstraints = false
             root.addSubview(v)
         }
         transport.setContentHuggingPriority(.required, for: .vertical)
-        NSLayoutConstraint.activate([
+        // Rows that compact view drops. Hidden views keep their constraints, which would stop the window shrinking.
+        let stacked = [
+            separator.topAnchor.constraint(equalTo: transport.bottomAnchor),
+            lists.topAnchor.constraint(equalTo: separator.bottomAnchor),
+            lists.bottomAnchor.constraint(equalTo: statusBox.topAnchor),
+            statusBox.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+            statusBox.heightAnchor.constraint(equalToConstant: 22),
+            listsMin,
+        ]
+        compactConstraints = stacked
+        NSLayoutConstraint.activate(stacked + [
             transport.topAnchor.constraint(equalTo: root.topAnchor),
             transport.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             transport.trailingAnchor.constraint(equalTo: root.trailingAnchor),
             transport.heightAnchor.constraint(equalToConstant: 40),
-            separator.topAnchor.constraint(equalTo: transport.bottomAnchor),
             separator.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             separator.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            lists.topAnchor.constraint(equalTo: separator.bottomAnchor),
             lists.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             lists.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            lists.bottomAnchor.constraint(equalTo: statusBox.topAnchor),
             statusBox.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             statusBox.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            statusBox.bottomAnchor.constraint(equalTo: root.bottomAnchor),
-            statusBox.heightAnchor.constraint(equalToConstant: 22),
         ])
         return root
     }

@@ -19,12 +19,54 @@ final class TrackInfoWindow: NSWindowController {
         win.title = track.name
         super.init(window: win)
         win.contentView = buildForm()
+        if isModule(track.url), let root = win.contentView {
+            win.setContentSize(root.fittingSize)
+        }
         loadValues()
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
+    /// Tracker modules get a read-only module view: structure, tracker and the song message.
+    private func buildModuleView() -> NSView {
+        let details = moduleDetails(track.url)
+        let grid = NSGridView()
+        grid.rowSpacing = 6
+        grid.columnSpacing = 12
+        for (label, value) in details.rows {
+            let v = NSTextField(labelWithString: value)
+            v.isSelectable = true
+            v.lineBreakMode = .byTruncatingTail
+            let l = NSTextField(labelWithString: label)
+            l.textColor = .secondaryLabelColor
+            grid.addRow(with: [l, v])
+        }
+        grid.column(at: 0).xPlacement = .trailing
+        let text = NSTextView()
+        text.isEditable = false
+        text.isSelectable = true
+        text.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+        text.string = details.message.isEmpty ? "No song message." : details.message
+        text.textContainerInset = NSSize(width: 6, height: 6)
+        let scroll = NSScrollView()
+        scroll.documentView = text
+        scroll.hasVerticalScroller = true
+        scroll.borderType = .bezelBorder
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        scroll.heightAnchor.constraint(equalToConstant: 150).isActive = true
+        scroll.widthAnchor.constraint(equalToConstant: 428).isActive = true
+        let close = NSButton(title: "Close", target: self, action: #selector(closeWindow))
+        close.keyEquivalent = "\u{1b}"
+        let root = NSStackView(views: [grid, NSTextField(labelWithString: "Song message"), scroll, close])
+        root.orientation = .vertical
+        root.alignment = .leading
+        root.spacing = 12
+        root.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
+        return root
+    }
+
     private func buildForm() -> NSView {
+        if isModule(track.url) { return buildModuleView() }
         let grid = NSGridView()
         grid.rowSpacing = 8
         grid.columnSpacing = 10

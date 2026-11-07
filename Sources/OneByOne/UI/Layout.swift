@@ -80,7 +80,7 @@ extension MainWindowController {
             t.applyStyle(grid: s.listGrid, hideScrollbars: s.hideScrollbars,
                          rowHeight: s.biggerTree ? 22 : 18, showInfo: s.extraInfoCol)
         }
-        if let item = splitController?.splitViewItems.first, item.isCollapsed == s.showTree {
+        if !s.compact, let item = splitController?.splitViewItems.first, item.isCollapsed == s.showTree {
             item.isCollapsed = !s.showTree
         }
         volumeSlider.controlSize = s.largerSliders ? .regular : .small
