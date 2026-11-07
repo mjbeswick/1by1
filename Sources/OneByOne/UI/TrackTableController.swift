@@ -99,7 +99,7 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         var text: String
         var alignRight = false
         switch col.identifier.rawValue {
-        case "name": text = (row == heardRow ? "▶ " : "") + t.display
+        case "name": text = t.display
         case "length": text = t.duration.map { clock($0) } ?? ""; alignRight = true
         case "size":
             text = sizeText(t.size)
