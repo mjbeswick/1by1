@@ -17,13 +17,18 @@ extension MainWindowController {
         alert.addButton(withTitle: "Cancel")
         alert.beginSheetModal(for: window) { [weak self] response in
             guard response == .alertFirstButtonReturn, let self else { return }
+            let trashed = Set(tracks.map { $0.url })
+            let heardTrashed = self.player.heardTrack.map { trashed.contains($0.url) } ?? false
             NSWorkspace.shared.recycle(tracks.map { $0.url }) { _, error in
                 DispatchQueue.main.async {
                     if let error {
                         self.statusLabel.stringValue = "Trash failed: \(error.localizedDescription)"
-                    } else {
-                        self.reloadFolder()
+                        return
                     }
+                    self.reloadFolder()
+                    self.player.prunePlaylist()
+                    self.refresh()
+                    if heardTrashed { self.player.next() }
                 }
             }
         }

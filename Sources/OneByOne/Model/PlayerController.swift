@@ -119,6 +119,12 @@ final class PlayerController {
         onChange?()
     }
 
+    /// Drop playlist entries whose file no longer exists, e.g. after a move to the Trash.
+    func prunePlaylist() {
+        let gone = IndexSet(playlist.indices.filter { !FileManager.default.fileExists(atPath: playlist[$0].url.path) })
+        if !gone.isEmpty { removePlaylistRows(gone) }
+    }
+
     func clearPlaylist() {
         playlist = []
         onChange?()

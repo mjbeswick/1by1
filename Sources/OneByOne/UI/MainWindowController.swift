@@ -165,6 +165,13 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         separator.translatesAutoresizingMaskIntoConstraints = false
 
         playlistTable.onActivate = { [weak self] row in self?.player.playFromPlaylist(row: row) }
+        playlistTable.onReorder = { [weak self] from, target in
+            guard let self else { return }
+            // Insertion index to a delta. Moving down leaves one row out of the count.
+            let delta = target > from ? target - from - 1 : target - from
+            self.player.movePlaylistRows(IndexSet(integer: from), by: delta)
+            self.refresh()
+        }
         let lists = NSSplitView()
         lists.dividerStyle = .thin
         listsSplit = lists

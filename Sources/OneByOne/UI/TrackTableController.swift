@@ -13,9 +13,15 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
     /// Size column shows length too unless this is set.
     var sizeWithoutLength = false
 
+    /// Set on the playlist only. Called with the dragged row and the insertion index.
+    var onReorder: ((Int, Int) -> Void)?
+    private static let rowType = NSPasteboard.PasteboardType("com.1by1.row")
+
     init(autosaveName: String) {
         view = NSScrollView()
         super.init()
+        table.registerForDraggedTypes([Self.rowType])
+        table.setDraggingSourceOperationMask(.move, forLocal: true)
         let columns: [(String, String, CGFloat)] = [
             ("name", "Name", 280), ("length", "Length", 70), ("size", "Size", 150),
             ("type", "Type", 60), ("info", "Info", 240),
@@ -76,6 +82,28 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         guard let id = sender.representedObject as? String,
               let col = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(id)) else { return }
         col.isHidden.toggle()
+    }
+
+    func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> NSPasteboardWriting? {
+        guard onReorder != nil else { return nil }
+        let item = NSPasteboardItem()
+        item.setString(String(row), forType: Self.rowType)
+        return item
+    }
+
+    func tableView(_ tableView: NSTableView, validateDrop info: NSDraggingInfo, proposedRow row: Int,
+                   proposedDropOperation op: NSTableView.DropOperation) -> NSDragOperation {
+        guard onReorder != nil, info.draggingPasteboard.string(forType: Self.rowType) != nil else { return [] }
+        tableView.setDropRow(row, dropOperation: .above)
+        return .move
+    }
+
+    func tableView(_ tableView: NSTableView, acceptDrop info: NSDraggingInfo, row: Int,
+                   dropOperation op: NSTableView.DropOperation) -> Bool {
+        guard let onReorder, let text = info.draggingPasteboard.string(forType: Self.rowType),
+              let from = Int(text) else { return false }
+        onReorder(from, row)
+        return true
     }
 
     func setTracks(_ tracks: [Track]) {
