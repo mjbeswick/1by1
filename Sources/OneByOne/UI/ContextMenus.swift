@@ -58,6 +58,14 @@ extension MainWindowController {
                 menu.addItem(menuItem("Track Info...") { [weak self] in self?.showTrackInfo() })
             }
         }
+        if !t.isFolder && !inPlaylist {
+            menu.addItem(menuItem("Move to Folder...") { [weak self] in
+                guard let self else { return }
+                let rows = self.table.selectedRows.filter { self.player.tracks.indices.contains($0) && !self.player.tracks[$0].isFolder }
+                self.moveTracks(rows.map { self.player.tracks[$0] })
+            })
+            menu.addItem(menuItem("Move to Trash") { [weak self] in self?.trashSelected() })
+        }
         menu.addItem(.separator())
         menu.addItem(menuItem("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([t.url]) })
         menu.addItem(menuItem("Copy Path") { copyText(t.url.path) })
@@ -68,6 +76,9 @@ extension MainWindowController {
     func treeMenu(url: URL) -> NSMenu {
         let menu = NSMenu()
         menu.addItem(menuItem("Open Folder") { [weak self] in self?.openFolder(url) })
+        menu.addItem(menuItem("New Folder...") { [weak self] in self?.newFolder(in: url) })
+        menu.addItem(menuItem("Rename Folder...") { [weak self] in self?.renameFolder(url) })
+        menu.addItem(menuItem("Move Folder to Trash") { [weak self] in self?.trashFolder(url) })
         menu.addItem(.separator())
         menu.addItem(menuItem("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) })
         menu.addItem(menuItem("Copy Path") { copyText(url.path) })
