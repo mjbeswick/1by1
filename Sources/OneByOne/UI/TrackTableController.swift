@@ -1,7 +1,7 @@
 import AppKit
 
 /// Track list in an NSTableView. Rows come from the player's current folder.
-final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
     let view: NSScrollView
     let table = ContextTableView()
     private var rows: [Track] = []
@@ -38,6 +38,10 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         table.doubleAction = #selector(activated)
         table.rowHeight = 20
         table.autosaveName = autosaveName
+        // Right-click the header to show or hide columns. The name column stays.
+        let headerMenu = NSMenu()
+        headerMenu.delegate = self
+        table.headerView?.menu = headerMenu
         table.autosaveTableColumns = true
         view.documentView = table
         view.hasVerticalScroller = true
@@ -54,6 +58,24 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
     var selectedRow: Int? {
         let r = table.selectedRow
         return r >= 0 ? r : nil
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+        for col in table.tableColumns {
+            let item = NSMenuItem(title: col.title, action: #selector(toggleColumn(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = col.identifier.rawValue
+            item.state = col.isHidden ? .off : .on
+            item.isEnabled = col.identifier.rawValue != "name"
+            menu.addItem(item)
+        }
+    }
+
+    @objc private func toggleColumn(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String,
+              let col = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(id)) else { return }
+        col.isHidden.toggle()
     }
 
     func setTracks(_ tracks: [Track]) {
