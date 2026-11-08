@@ -75,6 +75,9 @@ extension MainWindowController {
         case (51, []) where window?.firstResponder === playlistTable.table:       // Delete in playlist
             removeFromPlaylist()
             return true
+        case (51, [.option]) where window?.firstResponder === table.table:       // Option-Delete: to Trash
+            trashSelected()
+            return true
         case (117, []), (114, []):                                               // Delete, Insert: skip to next
             player.next()
             return true
