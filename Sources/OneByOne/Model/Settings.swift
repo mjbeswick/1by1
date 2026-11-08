@@ -195,7 +195,7 @@ struct Settings: Codable {
 
     // Playlist
     var playlistPos: PlaylistPos = .bottom
-    var playlistOpen = false
+    var playlistOpen = true
 
     // System
     var oneInstance = true

@@ -73,5 +73,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
+# Drop symbol tables from the bundled libraries. Saves about 4 MB and changes no behaviour.
+strip -x "$FW"/*.dylib "$APP/Contents/MacOS/OneByOne" 2>/dev/null || true
+
 codesign --force --deep -s - "$APP"
 echo "built $APP"
