@@ -20,6 +20,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     /// Views hidden in compact view. The transport row stays.
     var compactHidden: [NSView] = []
     var compactConstraints: [NSLayoutConstraint] = []
+    /// Off during setup. Setup resizes the window, and that must not overwrite the saved size.
+    var sizeSaveEnabled = false
     var keyMonitor: Any?
     var wheelMonitor: Any?
     var highPriorityToken: NSObjectProtocol?
@@ -66,6 +68,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         if player.settings.httpEnabled { toggleRemote() }
         applySettings()
         applyCompact()
+        sizeSaveEnabled = true
         ticker = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
             self?.tick()
         }

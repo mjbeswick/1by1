@@ -90,8 +90,10 @@ extension MainWindowController {
         let chrome = win.frameRect(forContentRect: NSRect(x: 0, y: 0, width: 100, height: 100)).height - 100
         let transportHeight: CGFloat = 40
         win.minSize = NSSize(width: 560, height: compact ? chrome + transportHeight : 420)
-        let width = win.frame.width
+        // The saved width applies when expanded. Compact keeps the current width.
+        let width = compact ? win.frame.width : max(560, CGFloat(player.settings.winWidth))
         var frame = win.frame
+        frame.size.width = width
         let newHeight = compact ? chrome + transportHeight : max(420, CGFloat(player.settings.winHeight))
         frame.origin.y += frame.height - newHeight
         frame.size.height = newHeight
@@ -185,6 +187,13 @@ extension MainWindowController {
 
 extension MainWindowController {
     /// Close hides the window when Minimize on Close is set.
+    /// Remember the expanded size. Compact view changes the height, so it is not saved.
+    func windowDidResize(_ notification: Notification) {
+        guard sizeSaveEnabled, let win = window, !player.settings.compact else { return }
+        player.settings.winWidth = Int(win.frame.width)
+        player.settings.winHeight = Int(win.frame.height)
+    }
+
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard player.settings.minimizeOnClose else { return true }
         sender.miniaturize(nil)
