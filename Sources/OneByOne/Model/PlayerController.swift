@@ -3,12 +3,14 @@ import Foundation
 /// Owns the folder and playlist lists and drives the engine. Main thread only.
 final class PlayerController {
     let engine = Engine()
-    var settings: Settings
+    /// Every settings change is written to disk, debounced so drags do not write on each step.
+    var settings: Settings { didSet { scheduleSave() } }
+    private var saveTimer: Timer?
 
     var folder: URL?
     var folderTracks: [Track] = []
     /// Queued tracks from any folder. Played in order when `usesPlaylist` is set.
-    var playlist: [Track] = []
+    var playlist: [Track] = [] { didSet { scheduleSave() } }
     var usesPlaylist = false
 
     /// The list playback walks: the playlist or the current folder.
@@ -56,6 +58,7 @@ final class PlayerController {
         engine.onError = { [weak self] spec, msg in
             self?.onMessage?("Cannot play \(spec.url.lastPathComponent): \(msg)")
         }
+        restorePlaylist()
     }
 
     var isPlaying: Bool { engine.state == .playing }
@@ -72,7 +75,34 @@ final class PlayerController {
     /// Folder changed during playback. The next folder's first track starts when this one ends.
     private var pendingFolderStart = false
 
-    func save() { settings.save() }
+    /// Write settings now. The playlist goes in through a copy, so this does not trigger another save.
+    func save() {
+        saveTimer?.invalidate()
+        saveTimer = nil
+        var s = settings
+        s.playlistEntries = playlist.map { t in
+            Settings.PlaylistEntry(path: t.url.path, start: t.cue?.start, end: t.cue?.end)
+        }
+        s.save()
+    }
+
+    private func scheduleSave() {
+        saveTimer?.invalidate()
+        saveTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
+            self?.save()
+        }
+    }
+
+    /// Rebuild the saved playlist. Files that no longer exist are dropped.
+    func restorePlaylist() {
+        playlist = settings.playlistEntries.compactMap { e in
+            let url = URL(fileURLWithPath: e.path)
+            guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+            let t = Track(url: url)
+            if let start = e.start { t.cue = (start: start, end: e.end) }
+            return t
+        }
+    }
 
     // MARK: - Folder
 

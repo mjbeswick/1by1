@@ -221,6 +221,9 @@ struct Settings: Codable {
     // Bookmarks
     var bookmarks: [Bookmark] = []
 
+    // Playlist contents, saved across launches
+    var playlistEntries: [PlaylistEntry] = []
+
     // UI session state
     var showTree = true
     var compact = false
@@ -230,6 +233,13 @@ struct Settings: Codable {
     struct Resume: Codable, Equatable {
         var path: String
         var seconds: Double
+    }
+
+    struct PlaylistEntry: Codable, Equatable {
+        var path: String
+        /// Cue virtual track bounds. Nil for a whole file.
+        var start: Double?
+        var end: Double?
     }
 
     struct Bookmark: Codable, Equatable {
@@ -286,7 +296,7 @@ struct Settings: Codable {
         get("proxy", &proxy); get("httpEnabled", &httpEnabled); get("httpAddr", &httpAddr)
         get("logEnabled", &logEnabled); get("logMaxKB", &logMaxKB); get("historyMenus", &historyMenus)
         get("historyEntries", &historyEntries); get("recentTracks", &recentTracks)
-        get("recentDirs", &recentDirs); get("external", &external); get("bookmarks", &bookmarks)
+        get("recentDirs", &recentDirs); get("external", &external); get("bookmarks", &bookmarks); get("playlistEntries", &playlistEntries)
         get("showTree", &showTree); get("compact", &compact)
         get("winWidth", &winWidth); get("winHeight", &winHeight)
     }
