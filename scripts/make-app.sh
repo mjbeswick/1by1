@@ -3,6 +3,12 @@
 # install names rewritten to @rpath, ad hoc signed. Runs on macOS with Homebrew libs.
 set -e
 cd "$(dirname "$0")/.."
+# A minimal FFmpeg built by build-ffmpeg-min.sh takes precedence over Homebrew's.
+ALT=""
+if [ -d "$PWD/.ffmpeg-min" ]; then
+    ALT="$PWD/.ffmpeg-min"
+    export PKG_CONFIG_PATH="$ALT/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+fi
 swift build -c release
 APP=dist/OneByOne.app
 BIN=.build/release/OneByOne
@@ -14,7 +20,7 @@ cp assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 # Walk Homebrew dependencies until none are left, copying each dylib once.
 homebrew_deps() {
-    otool -L "$1" | awk 'NR>1 {print $1}' | grep '^/opt/homebrew/' || true
+    otool -L "$1" | awk 'NR>1 {print $1}' | grep -E "^/opt/homebrew/${ALT:+|^$ALT/}" || true
 }
 queue="$BIN"
 seen=""
