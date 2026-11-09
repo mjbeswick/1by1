@@ -252,10 +252,11 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         }
         switch id {
         case ItemID.listMode:
-            let seg = NSSegmentedControl(labels: ["Files", "Playlist"], trackingMode: .selectOne,
+            // Icons only. The accessibility descriptions still name each segment for VoiceOver.
+            let files = NSImage(systemSymbolName: "folder", accessibilityDescription: "Files") ?? NSImage()
+            let playlist = NSImage(systemSymbolName: "music.note.list", accessibilityDescription: "Playlist") ?? NSImage()
+            let seg = NSSegmentedControl(images: [files, playlist], trackingMode: .selectOne,
                                          target: self, action: #selector(listModeChanged(_:)))
-            seg.setImage(NSImage(systemSymbolName: "folder", accessibilityDescription: "Files"), forSegment: 0)
-            seg.setImage(NSImage(systemSymbolName: "music.note.list", accessibilityDescription: "Playlist"), forSegment: 1)
             seg.selectedSegment = player.settings.playlistFull ? 1 : 0
             listModeControl = seg
             item.label = "List"
