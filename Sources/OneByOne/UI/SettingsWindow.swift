@@ -279,7 +279,7 @@ final class SettingsWindow: NSWindowController, NSTableViewDataSource, NSTableVi
             ]),
             page([
                 check("Only one instance", \.oneInstance),
-                check("Status bar icon", \.trayIcon),
+                check("Menu bar mini player", \.trayIcon),
                 check("High priority", \.highPriority),
                 check("Minimize on close", \.minimizeOnClose),
                 check("Save every 5 minutes", \.autosave5min),

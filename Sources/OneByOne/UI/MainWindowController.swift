@@ -27,6 +27,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     var wheelMonitor: Any?
     var highPriorityToken: NSObjectProtocol?
     var statusItem: NSStatusItem?
+    var miniPlayer: MiniPlayer?
     var findWindow: FindFilesWindow?
     weak var searchField: NSSearchField?
     var coverContainer: NSView?
@@ -60,6 +61,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         win.title = "1by1"
         win.toolbarStyle = .unified
         win.minSize = NSSize(width: 560, height: 420)
+        // The window closes and reopens from the menu bar, so AppKit must not free it.
+        win.isReleasedWhenClosed = false
         super.init(window: win)
         win.delegate = self
         buildContent(in: win)
@@ -406,6 +409,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
 
     /// Repaint everything that depends on playback state.
     func refresh() {
+        miniPlayer?.update()
         playlistTable.setTracks(player.playlist)
         table.setHeard(player.usesPlaylist ? nil : player.heard)
         playlistTable.setHeard(player.usesPlaylist ? player.heard : nil)

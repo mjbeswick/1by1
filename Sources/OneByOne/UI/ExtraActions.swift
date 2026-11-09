@@ -200,7 +200,8 @@ extension MainWindowController {
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard player.settings.minimizeOnClose else { return true }
+        // With the menu bar player on, closing keeps the app running there. Minimize is not used.
+        guard !player.settings.trayIcon, player.settings.minimizeOnClose else { return true }
         sender.miniaturize(nil)
         return false
     }
@@ -215,21 +216,34 @@ extension MainWindowController {
     }
 
     /// Settings-driven extras that have no layout of their own: tray icon, priority.
+    /// Bring the main window back, from the menu bar or the Dock.
+    @objc func showMainWindow() {
+        showWindow(nil)
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     func applyExtras() {
         let s = player.settings
         if s.trayIcon, statusItem == nil {
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
             item.button?.image = NSImage(systemSymbolName: "music.note", accessibilityDescription: "1by1")
+            let mini = MiniPlayer(controller: self, player: player)
+            miniPlayer = mini
             let menu = NSMenu()
-            menu.addItem(withTitle: "Play / Pause", action: #selector(playPausePressed), keyEquivalent: "").target = self
-            menu.addItem(withTitle: "Next Track", action: #selector(nextTrack), keyEquivalent: "").target = self
-            menu.addItem(withTitle: "Previous Track", action: #selector(previousTrack), keyEquivalent: "").target = self
+            menu.delegate = mini
+            let host = NSMenuItem()
+            host.view = mini.view
+            menu.addItem(host)
             menu.addItem(.separator())
+            menu.addItem(withTitle: "Show Main Window", action: #selector(showMainWindow), keyEquivalent: "").target = self
             menu.addItem(withTitle: "Quit 1by1", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "").target = NSApp
             item.menu = menu
             statusItem = item
         } else if !s.trayIcon, let item = statusItem {
             NSStatusBar.system.removeStatusItem(item)
+            miniPlayer?.stop()
+            miniPlayer = nil
             statusItem = nil
         }
         if s.highPriority, highPriorityToken == nil {

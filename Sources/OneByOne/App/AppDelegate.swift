@@ -27,7 +27,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         player?.save()
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    /// With the menu bar player on, the app keeps running after the window closes.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        !(player?.settings.trayIcon ?? false)
+    }
+
+    /// Clicking the Dock icon brings back a closed main window.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { window?.showMainWindow() }
+        return true
+    }
 
     // MARK: Menu actions routed through the responder chain's target
 

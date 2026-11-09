@@ -65,10 +65,7 @@ extension MainWindowController {
         guard let container = coverContainer, let image = coverImage else { return }
         container.isHidden = !s.coverArt || s.coverMode == .off
         guard !container.isHidden, let folder = player.folder else { return }
-        let names = s.coverNames.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
-        let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
-        let hit = files.first { names.contains($0.lastPathComponent.lowercased()) }
-        if let hit, let img = NSImage(contentsOf: hit) {
+        if let img = coverArt(in: folder, names: s.coverNames) {
             image.image = img
             container.isHidden = false
         } else {
@@ -130,4 +127,12 @@ extension MainWindowController {
             self?.player.save()
         }
     }
+}
+
+/// First image in `folder` whose file name is in the `;`-separated `names` list.
+func coverArt(in folder: URL, names: String) -> NSImage? {
+    let wanted = names.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+    let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
+    guard let hit = files.first(where: { wanted.contains($0.lastPathComponent.lowercased()) }) else { return nil }
+    return NSImage(contentsOf: hit)
 }
