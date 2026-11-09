@@ -58,8 +58,8 @@ final class Engine {
     var duration: Double? { tracks.first?.duration }
 
     /// Start `spec` from `seconds` into its virtual track. Replaces what plays.
+    /// A new track always starts playing, even when the previous one was paused.
     func play(_ spec: Spec, at seconds: Double = 0) {
-        let keepPaused = state == .paused
         reset()
         guard let track = makeTrack(spec, at: seconds) else { return }
         tracks = [track]
@@ -67,13 +67,14 @@ final class Engine {
         state = .playing
         pump()
         onTrackChanged?(spec)
-        if keepPaused { pause() }
     }
 
-    /// Seek inside the current track.
+    /// Seek inside the current track. A paused track stays paused.
     func seek(to seconds: Double) {
         guard let spec = current else { return }
+        let wasPaused = state == .paused
         play(spec, at: max(0, seconds))
+        if wasPaused { pause() }
     }
 
     func pause() {
