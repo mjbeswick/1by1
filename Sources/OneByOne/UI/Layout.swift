@@ -37,7 +37,9 @@ extension MainWindowController {
         let s = player.settings
         lists.arrangedSubviews.forEach { $0.removeFromSuperview() }
         lists.isVertical = s.playlistPos == .right
-        if s.playlistOpen {
+        if s.playlistFull {
+            lists.addArrangedSubview(playlistTable.view)
+        } else if s.playlistOpen {
             if s.playlistPos == .top {
                 lists.addArrangedSubview(playlistTable.view)
                 lists.addArrangedSubview(table.view)
@@ -49,6 +51,12 @@ extension MainWindowController {
             lists.addArrangedSubview(table.view)
         }
         lists.setHoldingPriority(NSLayoutConstraint.Priority(250), forSubviewAt: 0)
+        listModeControl?.selectedSegment = s.playlistFull ? 1 : 0
+        // Keep the View menu checkmark in step with the pane setting.
+        let paneItem = NSApp.mainMenu?.items.compactMap { $0.submenu?.items }.joined().first {
+            $0.action == #selector(MainWindowController.togglePlaylistView)
+        }
+        paneItem?.state = s.playlistOpen ? .on : .off
     }
 
     /// Show the cover file from the current folder, or hide the panel when there is none.

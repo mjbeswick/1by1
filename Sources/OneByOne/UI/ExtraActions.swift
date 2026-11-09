@@ -112,6 +112,11 @@ extension MainWindowController {
         setRemote(remote == nil)
     }
 
+    @objc func listModeChanged(_ sender: NSSegmentedControl) {
+        player.settings.playlistFull = sender.selectedSegment == 1
+        applySettings()
+    }
+
     @objc func togglePlaylistView() {
         player.settings.playlistOpen.toggle()
         player.save()

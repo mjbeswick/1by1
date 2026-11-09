@@ -196,6 +196,8 @@ struct Settings: Codable {
     // Playlist
     var playlistPos: PlaylistPos = .bottom
     var playlistOpen = true
+    /// Show the playlist in place of the folder list. Pane (playlistOpen) is separate.
+    var playlistFull = false
 
     // System
     var oneInstance = true
@@ -290,7 +292,7 @@ struct Settings: Codable {
         get("bigView", &bigView); get("bigLayout", &bigLayout); get("bigIdleSecs", &bigIdleSecs)
         get("bigPadding", &bigPadding); get("bigCycleSecs", &bigCycleSecs)
         get("bigInfoPattern", &bigInfoPattern)
-        get("playlistPos", &playlistPos); get("playlistOpen", &playlistOpen)
+        get("playlistPos", &playlistPos); get("playlistOpen", &playlistOpen); get("playlistFull", &playlistFull)
         get("oneInstance", &oneInstance); get("trayIcon", &trayIcon); get("highPriority", &highPriority)
         get("minimizeOnClose", &minimizeOnClose); get("autosave5min", &autosave5min)
         get("proxy", &proxy); get("httpEnabled", &httpEnabled); get("httpAddr", &httpAddr)

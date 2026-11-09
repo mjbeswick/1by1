@@ -20,6 +20,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     /// Views hidden in compact view. The transport row stays.
     var compactHidden: [NSView] = []
     var compactConstraints: [NSLayoutConstraint] = []
+    var listModeControl: NSSegmentedControl?
     /// Off during setup. Setup resizes the window, and that must not overwrite the saved size.
     var sizeSaveEnabled = false
     var keyMonitor: Any?
@@ -46,6 +47,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         static let repeatMode = NSToolbarItem.Identifier("repeat")
         static let shuffle = NSToolbarItem.Identifier("shuffle")
         static let search = NSToolbarItem.Identifier("search")
+        static let listMode = NSToolbarItem.Identifier("listMode")
     }
 
     init(player: PlayerController) {
@@ -229,12 +231,12 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [ItemID.tree, ItemID.open, ItemID.prev, ItemID.playPause, ItemID.stop, ItemID.next,
+        [ItemID.tree, ItemID.open, ItemID.listMode, ItemID.prev, ItemID.playPause, ItemID.stop, ItemID.next,
          ItemID.repeatMode, ItemID.shuffle, .flexibleSpace, ItemID.search]
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [ItemID.tree, ItemID.open, .flexibleSpace, ItemID.prev, ItemID.playPause, ItemID.stop, ItemID.next,
+        [ItemID.tree, ItemID.open, ItemID.listMode, .flexibleSpace, ItemID.prev, ItemID.playPause, ItemID.stop, ItemID.next,
          ItemID.repeatMode, ItemID.shuffle, .flexibleSpace, ItemID.search]
     }
 
@@ -249,6 +251,14 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
             item.action = action
         }
         switch id {
+        case ItemID.listMode:
+            let seg = NSSegmentedControl(labels: ["Files", "Playlist"], trackingMode: .selectOne,
+                                         target: self, action: #selector(listModeChanged(_:)))
+            seg.selectedSegment = player.settings.playlistFull ? 1 : 0
+            listModeControl = seg
+            item.label = "List"
+            item.toolTip = "Show the folder list or the playlist"
+            item.view = seg
         case ItemID.tree: button("sidebar.left", "Folder Tree", #selector(toggleTree))
         case ItemID.open: button("folder", "Open Folder", #selector(openFolderPanel))
         case ItemID.prev: button("backward.end.fill", "Previous", #selector(previousTrack))
