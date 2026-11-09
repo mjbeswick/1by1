@@ -1,14 +1,24 @@
 import COpenMPT
 import Foundation
 
+/// libopenmpt sets up shared decoder state (libmpg123) on first use. Two threads loading modules at
+/// once crashed it, so every create and destroy goes through this lock. Scans run in parallel otherwise.
+let libopenmptLock = NSLock()
+
 /// Runs `body` with a libopenmpt handle for the file, or returns nil when it cannot open.
 private func withModule<T>(_ url: URL, _ body: (OpaquePointer, (String) -> String?) -> T) -> T? {
     guard let data = try? Data(contentsOf: url), !data.isEmpty else { return nil }
+    libopenmptLock.lock()
     let made: OpaquePointer? = data.withUnsafeBytes { raw in
         openmpt_module_create_from_memory2(raw.baseAddress, raw.count, nil, nil, nil, nil, nil, nil, nil)
     }
+    libopenmptLock.unlock()
     guard let mod = made else { return nil }
-    defer { openmpt_module_destroy(mod) }
+    defer {
+        libopenmptLock.lock()
+        openmpt_module_destroy(mod)
+        libopenmptLock.unlock()
+    }
     func meta(_ key: String) -> String? {
         guard let p = openmpt_module_get_metadata(mod, key) else { return nil }
         defer { openmpt_free_string(p) }

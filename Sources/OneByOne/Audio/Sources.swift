@@ -168,10 +168,12 @@ final class ModuleSource: PCMSource {
             throw SourceError.open("\(url.lastPathComponent): \(error.localizedDescription)")
         }
         guard !data.isEmpty else { throw SourceError.open("\(url.lastPathComponent): empty") }
+        libopenmptLock.lock()
         let made: OpaquePointer? = data.withUnsafeBytes { raw in
             openmpt_module_create_from_memory2(
                 raw.baseAddress, raw.count, nil, nil, nil, nil, nil, nil, nil)
         }
+        libopenmptLock.unlock()
         guard let mod = made else {
             throw SourceError.open("\(url.lastPathComponent): unsupported tracker module")
         }
@@ -183,7 +185,11 @@ final class ModuleSource: PCMSource {
         scratch = [Float](repeating: 0, count: 4096 * 2)
     }
 
-    deinit { openmpt_module_destroy(mod) }
+    deinit {
+        libopenmptLock.lock()
+        openmpt_module_destroy(mod)
+        libopenmptLock.unlock()
+    }
 
     var duration: Double? { total }
 
