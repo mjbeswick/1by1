@@ -154,6 +154,7 @@ struct Settings: Codable {
     var extraInfoCol = true
     var infoMode: InfoMode = .artistTitle
     var noLengthInSize = false
+    var ratingStyle: RatingStyle = .stars
     var alwaysScan = false
     var hideScrollbars = false
 
@@ -278,7 +279,7 @@ struct Settings: Codable {
         get("restoreList", &restoreList); get("fileInfoMenu", &fileInfoMenu)
         get("foldersInList", &foldersInList); get("naturalSort", &naturalSort)
         get("lazyTree", &lazyTree); get("extraInfoCol", &extraInfoCol); get("infoMode", &infoMode)
-        get("noLengthInSize", &noLengthInSize); get("alwaysScan", &alwaysScan)
+        get("noLengthInSize", &noLengthInSize); get("ratingStyle", &ratingStyle); get("alwaysScan", &alwaysScan)
         get("hideScrollbars", &hideScrollbars)
         get("listGrid", &listGrid); get("fullRow", &fullRow); get("treeLines", &treeLines)
         get("theme", &theme); get("treeSpacing", &treeSpacing); get("treeStyleExplorer", &treeStyleExplorer)

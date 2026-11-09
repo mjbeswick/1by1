@@ -223,6 +223,7 @@ final class SettingsWindow: NSWindowController, NSTableViewDataSource, NSTableVi
                 check("Lazy folder tree", \.lazyTree),
                 check("Extra info column", \.extraInfoCol),
                 choice("Info column", \.infoMode),
+                choice("Rating style", \.ratingStyle),
                 check("Hide length in size column", \.noLengthInSize),
                 check("Always scan tags", \.alwaysScan),
                 check("Hide scrollbars", \.hideScrollbars),

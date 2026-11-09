@@ -24,7 +24,7 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
         table.setDraggingSourceOperationMask(.move, forLocal: true)
         let columns: [(String, String, CGFloat)] = [
             ("name", "Name", 280), ("length", "Length", 70), ("size", "Size", 150),
-            ("type", "Type", 60), ("info", "Info", 240),
+            ("type", "Type", 60), ("info", "Info", 240), ("rating", "Rating", 90),
         ]
         for (id, title, width) in columns {
             let c = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id))
@@ -156,6 +156,7 @@ final class TrackTableController: NSObject, NSTableViewDataSource, NSTableViewDe
             if !sizeWithoutLength, let d = t.duration { text += "  " + clock(d) }
             alignRight = true
         case "type": text = t.typeText
+        case "rating": text = ratingText(t.url)
         case "info": text = t.infoText
         default: text = ""
         }

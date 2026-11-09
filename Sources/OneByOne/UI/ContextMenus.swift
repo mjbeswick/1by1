@@ -67,9 +67,37 @@ extension MainWindowController {
             })
             menu.addItem(menuItem("Move to Trash", symbol: "trash") { [weak self] in self?.trashSelected() })
         }
+        if !t.isFolder {
+            let rate = NSMenuItem(title: "Rating", action: nil, keyEquivalent: "")
+            rate.image = NSImage(systemSymbolName: "star", accessibilityDescription: "Rating")
+            rate.submenu = ratingMenu(for: t.url)
+            menu.addItem(rate)
+        }
         menu.addItem(.separator())
         menu.addItem(menuItem("Show in Finder", symbol: "magnifyingglass") { NSWorkspace.shared.activateFileViewerSelecting([t.url]) })
         menu.addItem(menuItem("Copy Path", symbol: "doc.on.doc") { copyText(t.url.path) })
+        return menu
+    }
+
+    /// Rating choices for one file. Stars or thumbs, as set in Settings.
+    func ratingMenu(for url: URL) -> NSMenu {
+        let menu = NSMenu()
+        func rate(_ title: String, _ value: Int) {
+            menu.addItem(menuItem(title) { [weak self] in
+                Ratings.shared.set(url, value)
+                self?.table.reload()
+                self?.playlistTable.reload()
+            })
+        }
+        switch ratingStyleSetting {
+        case .stars:
+            rate("None", 0)
+            for v in 1...5 { rate(String(repeating: "\u{2605}", count: v), v) }
+        case .thumbs:
+            rate("Thumbs Up", 5)
+            rate("Thumbs Down", 1)
+            rate("None", 0)
+        }
         return menu
     }
 

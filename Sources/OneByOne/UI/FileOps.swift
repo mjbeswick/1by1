@@ -57,6 +57,7 @@ extension MainWindowController {
                 do {
                     try FileManager.default.moveItem(at: t.url, to: target)
                     moved.insert(t.url)
+                    Ratings.shared.move(t.url, to: target)
                 } catch {
                     skipped += 1
                 }

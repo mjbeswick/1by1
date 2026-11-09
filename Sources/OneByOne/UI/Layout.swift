@@ -82,6 +82,7 @@ extension MainWindowController {
         let s = player.settings
         displayUsesTags = s.tagTitles
         infoModeSetting = s.infoMode
+        ratingStyleSetting = s.ratingStyle
         clockColonMinutes = s.colonMinutes
         for t in [table, playlistTable] {
             t.sizeWithoutLength = s.noLengthInSize
