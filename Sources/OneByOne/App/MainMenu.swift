@@ -15,6 +15,8 @@ enum MainMenu {
 
         let file = NSMenu(title: "File")
         file.addItem(withTitle: "Open Folder...", action: #selector(MainWindowController.openFolderPanel), keyEquivalent: "o")
+        file.addItem(withTitle: "Load Playlist...", action: #selector(MainWindowController.loadPlaylist), keyEquivalent: "")
+        file.addItem(withTitle: "Save Playlist...", action: #selector(MainWindowController.savePlaylist), keyEquivalent: "")
         bar.addItem(submenu: file, title: "File")
 
         let play = NSMenu(title: "Play")

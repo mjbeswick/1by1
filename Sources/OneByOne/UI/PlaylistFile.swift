@@ -1,0 +1,42 @@
+import AppKit
+import UniformTypeIdentifiers
+
+extension MainWindowController {
+    /// Write the playlist as an extended M3U (UTF-8). Cue sheet bounds are not kept.
+    @objc func savePlaylist() {
+        guard let window else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "m3u8") ?? .plainText]
+        panel.nameFieldStringValue = "playlist.m3u8"
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url, let self else { return }
+            var lines = ["#EXTM3U"]
+            for t in self.player.playlist {
+                lines.append("#EXTINF:\(Int((t.duration ?? -1).rounded())),\(t.display)")
+                lines.append(t.url.path)
+            }
+            do {
+                try (lines.joined(separator: "\n") + "\n").write(to: url, atomically: true, encoding: .utf8)
+                self.statusLabel.stringValue = "Saved \(self.player.playlist.count) tracks to \(url.lastPathComponent)"
+            } catch {
+                self.statusLabel.stringValue = "Save failed: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    /// Append the tracks of an M3U or M3U8 file to the playlist.
+    @objc func loadPlaylist() {
+        guard let window else { return }
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "m3u8") ?? .plainText,
+                                     UTType(filenameExtension: "m3u") ?? .plainText]
+        panel.allowsMultipleSelection = false
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url, let self else { return }
+            let tracks = readPlaylist(url).filter { FileManager.default.fileExists(atPath: $0.path) }.map(Track.init(url:))
+            self.player.playlist += tracks
+            self.refresh()
+            self.statusLabel.stringValue = "Loaded \(tracks.count) tracks from \(url.lastPathComponent)"
+        }
+    }
+}
