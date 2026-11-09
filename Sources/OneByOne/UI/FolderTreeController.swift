@@ -116,13 +116,22 @@ final class FolderTreeController: NSObject, NSOutlineViewDataSource, NSOutlineVi
         let cell = outlineView.makeView(withIdentifier: id, owner: self) as? NSTableCellView ?? {
             let c = NSTableCellView()
             c.identifier = id
+            let icon = NSImageView()
+            icon.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
+            icon.translatesAutoresizingMaskIntoConstraints = false
+            c.addSubview(icon)
+            c.imageView = icon
             let tf = NSTextField(labelWithString: "")
             tf.lineBreakMode = .byTruncatingTail
             tf.translatesAutoresizingMaskIntoConstraints = false
             c.addSubview(tf)
             c.textField = tf
             NSLayoutConstraint.activate([
-                tf.leadingAnchor.constraint(equalTo: c.leadingAnchor, constant: 2),
+                icon.leadingAnchor.constraint(equalTo: c.leadingAnchor, constant: 2),
+                icon.centerYAnchor.constraint(equalTo: c.centerYAnchor),
+                icon.widthAnchor.constraint(equalToConstant: 16),
+                icon.heightAnchor.constraint(equalToConstant: 16),
+                tf.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 5),
                 tf.trailingAnchor.constraint(equalTo: c.trailingAnchor, constant: -4),
                 tf.centerYAnchor.constraint(equalTo: c.centerYAnchor),
             ])

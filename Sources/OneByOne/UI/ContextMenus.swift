@@ -29,11 +29,12 @@ private final class MenuAction: NSObject {
     @objc func fire() { run() }
 }
 
-private func menuItem(_ title: String, _ run: @escaping () -> Void) -> NSMenuItem {
+private func menuItem(_ title: String, symbol: String? = nil, _ run: @escaping () -> Void) -> NSMenuItem {
     let action = MenuAction(run)
     let item = NSMenuItem(title: title, action: #selector(MenuAction.fire), keyEquivalent: "")
     item.target = action
     item.representedObject = action
+    if let symbol { item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title) }
     return item
 }
 
@@ -49,39 +50,39 @@ extension MainWindowController {
         let t = tracks[row]
         let menu = NSMenu()
         if inPlaylist {
-            menu.addItem(menuItem("Play") { [weak self] in self?.player.playFromPlaylist(row: row) })
-            menu.addItem(menuItem("Remove from Playlist") { [weak self] in self?.removeFromPlaylist() })
+            menu.addItem(menuItem("Play", symbol: "play.fill") { [weak self] in self?.player.playFromPlaylist(row: row) })
+            menu.addItem(menuItem("Remove from Playlist", symbol: "minus.circle") { [weak self] in self?.removeFromPlaylist() })
         } else {
-            menu.addItem(menuItem(t.isFolder ? "Open Folder" : "Play") { [weak self] in self?.table.onActivate?(row) })
+            menu.addItem(menuItem(t.isFolder ? "Open Folder" : "Play", symbol: t.isFolder ? "folder" : "play.fill") { [weak self] in self?.table.onActivate?(row) })
             if !t.isFolder {
-                menu.addItem(menuItem("Add to Playlist") { [weak self] in self?.enqueueSelected() })
-                menu.addItem(menuItem("Track Info...") { [weak self] in self?.showTrackInfo() })
+                menu.addItem(menuItem("Add to Playlist", symbol: "text.badge.plus") { [weak self] in self?.enqueueSelected() })
+                menu.addItem(menuItem("Track Info...", symbol: "info.circle") { [weak self] in self?.showTrackInfo() })
             }
         }
         if !t.isFolder && !inPlaylist {
-            menu.addItem(menuItem("Move to Folder...") { [weak self] in
+            menu.addItem(menuItem("Move to Folder...", symbol: "folder.badge.gearshape") { [weak self] in
                 guard let self else { return }
                 let rows = self.table.selectedRows.filter { self.player.tracks.indices.contains($0) && !self.player.tracks[$0].isFolder }
                 self.moveTracks(rows.map { self.player.tracks[$0] })
             })
-            menu.addItem(menuItem("Move to Trash") { [weak self] in self?.trashSelected() })
+            menu.addItem(menuItem("Move to Trash", symbol: "trash") { [weak self] in self?.trashSelected() })
         }
         menu.addItem(.separator())
-        menu.addItem(menuItem("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([t.url]) })
-        menu.addItem(menuItem("Copy Path") { copyText(t.url.path) })
+        menu.addItem(menuItem("Show in Finder", symbol: "magnifyingglass") { NSWorkspace.shared.activateFileViewerSelecting([t.url]) })
+        menu.addItem(menuItem("Copy Path", symbol: "doc.on.doc") { copyText(t.url.path) })
         return menu
     }
 
     /// Menu for a folder tree row.
     func treeMenu(url: URL) -> NSMenu {
         let menu = NSMenu()
-        menu.addItem(menuItem("Open Folder") { [weak self] in self?.openFolder(url) })
-        menu.addItem(menuItem("New Folder...") { [weak self] in self?.newFolder(in: url) })
-        menu.addItem(menuItem("Rename Folder...") { [weak self] in self?.renameFolder(url) })
-        menu.addItem(menuItem("Move Folder to Trash") { [weak self] in self?.trashFolder(url) })
+        menu.addItem(menuItem("Open Folder", symbol: "folder") { [weak self] in self?.openFolder(url) })
+        menu.addItem(menuItem("New Folder...", symbol: "folder.badge.plus") { [weak self] in self?.newFolder(in: url) })
+        menu.addItem(menuItem("Rename Folder...", symbol: "pencil") { [weak self] in self?.renameFolder(url) })
+        menu.addItem(menuItem("Move Folder to Trash", symbol: "trash") { [weak self] in self?.trashFolder(url) })
         menu.addItem(.separator())
-        menu.addItem(menuItem("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) })
-        menu.addItem(menuItem("Copy Path") { copyText(url.path) })
+        menu.addItem(menuItem("Show in Finder", symbol: "magnifyingglass") { NSWorkspace.shared.activateFileViewerSelecting([url]) })
+        menu.addItem(menuItem("Copy Path", symbol: "doc.on.doc") { copyText(url.path) })
         return menu
     }
 }
