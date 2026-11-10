@@ -10,6 +10,9 @@ final class MiniPlayer: NSObject, NSMenuDelegate {
     private let titleLabel = NSTextField(labelWithString: "")
     private let artistLabel = NSTextField(labelWithString: "")
     private let timeLabel = NSTextField(labelWithString: "")
+    private let seek = NSSlider(value: 0, minValue: 0, maxValue: 1, target: nil, action: nil)
+    /// While the slider is being dragged, the timer does not move the knob.
+    private var seekHoldUntil = Date.distantPast
     private let playPause = NSButton()
     private let shuffle = NSButton()
     private var timer: Timer?
@@ -37,7 +40,12 @@ final class MiniPlayer: NSObject, NSMenuDelegate {
         artwork.layer?.cornerRadius = 6
         artwork.layer?.masksToBounds = true
 
-        for v in [artwork, titleLabel, artistLabel, timeLabel] { view.addSubview(v) }
+        seek.frame = NSRect(x: 88, y: 66, width: 180, height: 18)
+        seek.controlSize = .small
+        seek.isContinuous = true
+        seek.target = self
+        seek.action = #selector(seekMoved(_:))
+        for v in [artwork, titleLabel, artistLabel, timeLabel, seek] { view.addSubview(v) }
         button(NSButton(), "backward.end.fill", x: 68, action: #selector(MainWindowController.previousTrack))
         button(playPause, "play.fill", x: 104, action: #selector(MainWindowController.playPausePressed))
         button(NSButton(), "forward.end.fill", x: 140, action: #selector(MainWindowController.nextTrack))
@@ -67,6 +75,17 @@ final class MiniPlayer: NSObject, NSMenuDelegate {
                                   accessibilityDescription: nil)
         shuffle.contentTintColor = player.shuffle ? .controlAccentColor : .secondaryLabelColor
         setArtwork(track?.url.deletingLastPathComponent())
+        seek.isEnabled = track != nil && (player.duration ?? 0) > 0
+        if Date() > seekHoldUntil {
+            seek.doubleValue = (player.duration ?? 0) > 0 ? min(1, player.position / player.duration!) : 0
+        }
+    }
+
+    /// Drag updates the knob. The seek happens once, on mouse release, so the engine is not rebuilt per step.
+    @objc private func seekMoved(_ sender: NSSlider) {
+        seekHoldUntil = Date().addingTimeInterval(0.8)
+        guard NSApp.currentEvent?.type == .leftMouseUp, let d = player.duration, d > 0 else { return }
+        player.seek(to: sender.doubleValue * d)
     }
 
     /// Artwork comes from the playing track's folder. Cached per folder, so the tick does not reread it.
