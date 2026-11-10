@@ -23,19 +23,6 @@ enum CoverMode: String, Codable, CaseIterable {
     }
 }
 
-/// Big view layouts.
-enum BigLayout: String, Codable, CaseIterable {
-    case titleTimes, titleTimesInfo, titleInfo2, infoTitleTimes
-    var label: String {
-        switch self {
-        case .titleTimes: return "Title, times"
-        case .titleTimesInfo: return "Title, times, info"
-        case .titleInfo2: return "Title, info, info, times"
-        case .infoTitleTimes: return "Title, times, info, info"
-        }
-    }
-}
-
 /// Title bar content.
 enum TitleMode: String, Codable, CaseIterable {
     case name, nameElapsed, nameRemaining, nameElapsedTotal
@@ -186,14 +173,6 @@ struct Settings: Codable {
     var playlistHeight: Int = 160
     var playlistWidth: Int = 300
 
-    // Big view
-    var bigView = false
-    var bigLayout: BigLayout = .titleTimes
-    var bigIdleSecs: Int = 0
-    var bigPadding: Int = 12
-    var bigCycleSecs: Int = 10
-    var bigInfoPattern = "TITLE|INFO|TIME"
-
     // Playlist
     var playlistPos: PlaylistPos = .bottom
     var playlistOpen = true
@@ -229,7 +208,6 @@ struct Settings: Codable {
 
     // UI session state
     var showTree = true
-    var compact = false
     var winWidth: Int = 960
     var winHeight: Int = 620
 
@@ -290,9 +268,6 @@ struct Settings: Codable {
         get("coverNames", &coverNames)
         get("treeWidth", &treeWidth); get("coverHeight", &coverHeight)
         get("playlistHeight", &playlistHeight); get("playlistWidth", &playlistWidth)
-        get("bigView", &bigView); get("bigLayout", &bigLayout); get("bigIdleSecs", &bigIdleSecs)
-        get("bigPadding", &bigPadding); get("bigCycleSecs", &bigCycleSecs)
-        get("bigInfoPattern", &bigInfoPattern)
         get("playlistPos", &playlistPos); get("playlistOpen", &playlistOpen); get("playlistFull", &playlistFull)
         get("oneInstance", &oneInstance); get("trayIcon", &trayIcon); get("highPriority", &highPriority)
         get("minimizeOnClose", &minimizeOnClose); get("autosave5min", &autosave5min)
@@ -300,7 +275,7 @@ struct Settings: Codable {
         get("logEnabled", &logEnabled); get("logMaxKB", &logMaxKB); get("historyMenus", &historyMenus)
         get("historyEntries", &historyEntries); get("recentTracks", &recentTracks)
         get("recentDirs", &recentDirs); get("external", &external); get("bookmarks", &bookmarks); get("playlistEntries", &playlistEntries)
-        get("showTree", &showTree); get("compact", &compact)
+        get("showTree", &showTree)
         get("winWidth", &winWidth); get("winHeight", &winHeight)
     }
 

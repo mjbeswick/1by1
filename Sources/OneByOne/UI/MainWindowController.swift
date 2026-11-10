@@ -19,9 +19,6 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     var infoWindows: [TrackInfoWindow] = []
     var logWindows: [NSWindowController] = []
     var listsSplit: NSSplitView?
-    /// Views hidden in compact view. The transport row stays.
-    var compactHidden: [NSView] = []
-    var compactConstraints: [NSLayoutConstraint] = []
     var listModeControl: NSSegmentedControl?
     /// Off during setup. Setup resizes the window, and that must not overwrite the saved size.
     var sizeSaveEnabled = false
@@ -38,7 +35,6 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     var autosaveTimer: Timer?
     var tickCount = 0
     var remote: RemoteServer?
-    var bigTitle: BigTitleWindow?
     var settingsWindow: SettingsWindow?
 
     private enum ItemID {
@@ -75,7 +71,6 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         player.onQuitRequested = { NSApp.terminate(nil) }
         if player.settings.httpEnabled { toggleRemote() }
         applySettings()
-        applyCompact()
         sizeSaveEnabled = true
         ticker = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
             self?.tick()
@@ -210,13 +205,11 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         statusLabel.setContentHuggingPriority(.required, for: .vertical)
         // Seek and volume on top, status at the bottom, the lists take the rest.
         // A stack view gave the transport row most of the height, so the layout is pinned by hand.
-        compactHidden = [separator, lists, statusBox]
         for v in [transport, separator, lists, statusBox] {
             v.translatesAutoresizingMaskIntoConstraints = false
             root.addSubview(v)
         }
         transport.setContentHuggingPriority(.required, for: .vertical)
-        // Rows that compact view drops. Hidden views keep their constraints, which would stop the window shrinking.
         let stacked = [
             separator.topAnchor.constraint(equalTo: transport.bottomAnchor),
             lists.topAnchor.constraint(equalTo: separator.bottomAnchor),
@@ -225,7 +218,6 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
             statusBox.heightAnchor.constraint(equalToConstant: 22),
             listsMin,
         ]
-        compactConstraints = stacked
         NSLayoutConstraint.activate(stacked + [
             transport.topAnchor.constraint(equalTo: root.topAnchor),
             transport.leadingAnchor.constraint(equalTo: root.leadingAnchor),
@@ -464,9 +456,6 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         if let t = player.heardTrack {
             window?.title = windowTitle(for: t)
         }
-        bigTitle?.update(track: player.heardTrack, position: player.position, duration: player.duration,
-                         layout: player.settings.bigLayout, pattern: player.settings.bigInfoPattern,
-                         padding: player.settings.bigPadding, cycleSeconds: player.settings.bigCycleSecs)
         if player.isPaused { statusLabel.stringValue = "Paused" }
         updateStatus()
         tick()
@@ -676,17 +665,6 @@ extension MainWindowController {
 }
 
 extension MainWindowController {
-    @objc func toggleBigTitle() {
-        if let bigTitle, bigTitle.window?.isVisible == true {
-            bigTitle.window?.close()
-            return
-        }
-        let w = bigTitle ?? BigTitleWindow()
-        bigTitle = w
-        w.showWindow(nil)
-        refresh()
-    }
-
     @objc func showSettings() {
         let w = settingsWindow ?? SettingsWindow(player: player)
         w.onRemoteToggle = { [weak self] on in self?.setRemote(on) }

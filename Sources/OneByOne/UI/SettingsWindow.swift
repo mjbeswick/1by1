@@ -6,7 +6,6 @@ protocol Labeled { var label: String { get } }
 extension Repeat: Labeled {}
 extension PlaylistPos: Labeled {}
 extension CoverMode: Labeled {}
-extension BigLayout: Labeled {}
 extension TitleMode: Labeled {}
 extension InfoMode: Labeled {}
 extension SortKey: Labeled {}
@@ -19,7 +18,7 @@ final class SettingsWindow: NSWindowController, NSTableViewDataSource, NSTableVi
     var onRemoteToggle: ((Bool) -> Void)?
 
     private let pageNames = ["Playback", "Lists and info", "Controls", "Window style", "Titles",
-                             "Panels", "Big view", "System", "Logging and history", "External", "Hotkeys", "About"]
+                             "Panels", "System", "Logging and history", "External", "Hotkeys", "About"]
     private let pageList = NSTableView()
     private let pageHost = NSView()
     private var pages: [NSView] = []
@@ -270,14 +269,6 @@ final class SettingsWindow: NSWindowController, NSTableViewDataSource, NSTableVi
                 number("Playlist width", \.playlistWidth, 160...800),
             ]),
             page([
-                check("Big view", \.bigView),
-                choice("Layout", \.bigLayout),
-                number("Idle seconds before hiding", \.bigIdleSecs, 0...3600),
-                number("Padding", \.bigPadding, 0...80),
-                number("Info cycle seconds", \.bigCycleSecs, 1...600),
-                text("Info pattern", \.bigInfoPattern, width: 260),
-            ]),
-            page([
                 check("Only one instance", \.oneInstance),
                 check("Menu bar mini player", \.trayIcon),
                 check("High priority", \.highPriority),
@@ -323,8 +314,7 @@ final class SettingsWindow: NSWindowController, NSTableViewDataSource, NSTableVi
             ("Space", "Play / pause"), ("Return", "Play selected"), ("Left / Right", "Rewind / forward"),
             ("Ctrl-Left / Ctrl-Right", "Previous / next track"), ("Shift-Left / Shift-Right", "Previous / next folder"),
             ("Ctrl-Return", "Add to playlist"), ("Ctrl-R", "Repeat"), ("Ctrl-P", "Shuffle"),
-            ("Ctrl-N", "Intro scan"), ("Ctrl-X", "Explore folder"), ("Ctrl-B", "Big title view"),
-            ("F4", "Folder tree"), ("Cmd-G", "Go to track"), ("Cmd-I", "Track info"),
+            ("Ctrl-N", "Intro scan"), ("Ctrl-X", "Explore folder"), ("F4", "Folder tree"), ("Cmd-G", "Go to track"), ("Cmd-I", "Track info"),
             ("Cmd-D", "Add bookmark"), ("Cmd-Shift-L", "Track log"), ("Cmd-,", "Settings"),
         ]
         return keys.map { row($0.0, [NSTextField(labelWithString: $0.1)]) }

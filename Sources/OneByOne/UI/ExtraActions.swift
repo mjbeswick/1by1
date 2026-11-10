@@ -72,42 +72,6 @@ extension MainWindowController {
         openFolder(folder)
     }
 
-    /// Compact view: the window keeps only the transport line.
-    @objc func toggleCompact() {
-        player.settings.compact.toggle()
-        player.save()
-        applyCompact()
-    }
-
-    /// Compact view hides the sidebar, lists and status row. The transport row stays.
-    func applyCompact() {
-        let compact = player.settings.compact
-        for v in compactHidden { v.isHidden = compact }
-        if compact { NSLayoutConstraint.deactivate(compactConstraints) } else { NSLayoutConstraint.activate(compactConstraints) }
-        splitController?.splitViewItems.first?.isCollapsed = compact || !player.settings.showTree
-        guard let win = window else { return }
-        // The chrome is the title bar and toolbar. Compact keeps only the transport row under it.
-        let chrome = win.frameRect(forContentRect: NSRect(x: 0, y: 0, width: 100, height: 100)).height - 100
-        let transportHeight: CGFloat = 40
-        win.minSize = NSSize(width: 560, height: compact ? chrome + transportHeight : 420)
-        // The saved width applies when expanded. Compact keeps the current width.
-        let width = compact ? win.frame.width : max(560, CGFloat(player.settings.winWidth))
-        var frame = win.frame
-        frame.size.width = width
-        let newHeight = compact ? chrome + transportHeight : max(420, CGFloat(player.settings.winHeight))
-        frame.origin.y += frame.height - newHeight
-        frame.size.height = newHeight
-        win.setFrame(frame, display: true, animate: false)
-        // Changing the panes can pull the width down with the fitting size. Put it back once layout settles.
-        DispatchQueue.main.async {
-            guard abs(win.frame.width - width) > 1 else { return }
-            var f = win.frame
-            f.origin.x += f.width - width
-            f.size.width = width
-            win.setFrame(f, display: true, animate: false)
-        }
-    }
-
     @objc func toggleHTTP() {
         setRemote(remote == nil)
     }
@@ -200,9 +164,9 @@ extension MainWindowController {
 
 extension MainWindowController {
     /// Close hides the window when Minimize on Close is set.
-    /// Remember the expanded size. Compact view changes the height, so it is not saved.
+    /// Remember the window size.
     func windowDidResize(_ notification: Notification) {
-        guard sizeSaveEnabled, let win = window, !player.settings.compact else { return }
+        guard sizeSaveEnabled, let win = window else { return }
         player.settings.winWidth = Int(win.frame.width)
         player.settings.winHeight = Int(win.frame.height)
     }

@@ -40,10 +40,7 @@ enum RustSettingsImport {
             case "playlist_pos":
                 json["playlistPos"] = enumValue(value, ["top", "bottom", "right"])
             case "sort":
-                json["sort"] = enumValue(value, ["name", "length", "size", "type", "modified", "created"])
-            case "big_layout":
-                json["bigLayout"] = enumValue(value, BigLayout.allCases.map(\.rawValue))
-            case "title_mode":
+                json["sort"] = enumValue(value, ["name", "length", "size", "type", "modified", "created"])            case "title_mode":
                 json["titleMode"] = enumValue(value, TitleMode.allCases.map(\.rawValue))
             case "info_mode":
                 json["infoMode"] = enumValue(value, InfoMode.allCases.map(\.rawValue))

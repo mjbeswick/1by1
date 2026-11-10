@@ -24,7 +24,6 @@
 - **Tag editing.** Read and write tags on every format TagLib supports.
 - **Move and trash.** Move tracks to another folder. Create, rename or trash folders. Option-Delete sends tracks to the Trash, after a confirmation.
 - **Right-click everywhere.** Context menus on the track list, the playlist, and the folder tree.
-- **Compact view.** Just the transport. Press F7.
 - **Remote control.** A small HTTP control page on `127.0.0.1:8080`.
 - **Small.** About 6 MB. FFmpeg is a decode-only build with no encoders.
 
@@ -84,8 +83,6 @@ The app is ad hoc signed. It runs on the machine that built it. Public distribut
 | Folder tree | F4 |
 | Reload folder | F5 |
 | Playlist view | Shift-F5 |
-| Compact view | F7 |
-| Big title view | Control-B |
 | Settings | F6 or Command-, |
 
 ---
@@ -115,7 +112,7 @@ Sources/OneByOne/
   Library/    folder scan, cue and m3u, TagLib tags, module metadata
   Remote/     HTTP remote
   UI/         split view, folder tree, track table, context menus, file operations,
-              track info, big title, settings
+              track info, settings
   Logic.swift repeat, next and previous, shuffle, natural sort, clock
 scripts/
   make-app.sh            app bundle with libraries
@@ -137,7 +134,7 @@ scripts/
 
 ## Status
 
-Verified on screen: playback, gapless queue, folder tree, sorting, column menu, playlist and its restore, context menus, module info, compact view, tag editing.
+Verified on screen: playback, gapless queue, folder tree, sorting, column menu, playlist and its restore, context menus, module info, tag editing.
 
 Built, not yet tested on screen: move to folder, folder operations, Option-Delete, drag to reorder.
 

@@ -63,7 +63,6 @@ enum MainMenu {
         let view = NSMenu(title: "View")
         view.addItem(withTitle: "Show Folder Tree", action: #selector(MainWindowController.toggleTree), keyEquivalent: functionKey(NSF4FunctionKey))
         view.addItem(.separator())
-        view.addItem(withTitle: "Compact View", action: #selector(MainWindowController.toggleCompact), keyEquivalent: functionKey(NSF7FunctionKey))
         view.addItem(withTitle: "Playlist as Pane", action: #selector(MainWindowController.togglePlaylistView), keyEquivalent: functionKey(NSF5FunctionKey))
         view.addItem(withTitle: "Artwork Panel", action: #selector(MainWindowController.toggleArtwork), keyEquivalent: "")
             .keyEquivalentModifierMask = [.shift]
@@ -79,9 +78,6 @@ enum MainMenu {
         let bookmarksItem = NSMenuItem(title: "Bookmarks", action: nil, keyEquivalent: "")
         bookmarksItem.submenu = bm.bookmarks
         bar.addItem(bookmarksItem)
-        let viewItem = NSMenuItem(title: "Big Title View", action: #selector(MainWindowController.toggleBigTitle), keyEquivalent: "b")
-        viewItem.keyEquivalentModifierMask = [.control]
-        view.addItem(viewItem)
         let prefs = NSMenuItem(title: "Settings...", action: #selector(MainWindowController.showSettings), keyEquivalent: ",")
         app.insertItem(prefs, at: 2)
         app.insertItem(.separator(), at: 3)
