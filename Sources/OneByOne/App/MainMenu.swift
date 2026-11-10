@@ -65,6 +65,7 @@ enum MainMenu {
         view.addItem(.separator())
         view.addItem(withTitle: "Compact View", action: #selector(MainWindowController.toggleCompact), keyEquivalent: functionKey(NSF7FunctionKey))
         view.addItem(withTitle: "Playlist as Pane", action: #selector(MainWindowController.togglePlaylistView), keyEquivalent: functionKey(NSF5FunctionKey))
+        view.addItem(withTitle: "Artwork Panel", action: #selector(MainWindowController.toggleArtwork), keyEquivalent: "")
             .keyEquivalentModifierMask = [.shift]
         view.addItem(withTitle: "Reload Folder", action: #selector(MainWindowController.reloadFolder), keyEquivalent: functionKey(NSF5FunctionKey))
         bar.addItem(submenu: view, title: "View")

@@ -117,6 +117,13 @@ extension MainWindowController {
         applySettings()
     }
 
+    /// Show or hide the artwork panel in the sidebar.
+    @objc func toggleArtwork() {
+        player.settings.coverArt.toggle()
+        player.save()
+        applySettings()
+    }
+
     @objc func togglePlaylistView() {
         player.settings.playlistOpen.toggle()
         player.save()

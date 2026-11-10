@@ -52,11 +52,10 @@ extension MainWindowController {
         }
         lists.setHoldingPriority(NSLayoutConstraint.Priority(250), forSubviewAt: 0)
         listModeControl?.selectedSegment = s.playlistFull ? 1 : 0
-        // Keep the View menu checkmark in step with the pane setting.
-        let paneItem = NSApp.mainMenu?.items.compactMap { $0.submenu?.items }.joined().first {
-            $0.action == #selector(MainWindowController.togglePlaylistView)
-        }
-        paneItem?.state = s.playlistOpen ? .on : .off
+        // Keep the View menu checkmarks in step with their settings.
+        let viewItems: [NSMenuItem] = NSApp.mainMenu?.items.compactMap { $0.submenu?.items }.flatMap { $0 } ?? []
+        viewItems.first { $0.action == #selector(MainWindowController.togglePlaylistView) }?.state = s.playlistOpen ? .on : .off
+        viewItems.first { $0.action == #selector(MainWindowController.toggleArtwork) }?.state = s.coverArt ? .on : .off
     }
 
     /// Show the cover file from the current folder, or hide the panel when there is none.
