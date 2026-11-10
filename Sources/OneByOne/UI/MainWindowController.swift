@@ -13,6 +13,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     var splitController: NSSplitViewController?
     var ticker: Timer?
     private weak var playPauseItem: NSToolbarItem?
+    private weak var repeatItem: NSToolbarItem?
+    private weak var shuffleItem: NSToolbarItem?
     var seeking = false
     var infoWindows: [TrackInfoWindow] = []
     var logWindows: [NSWindowController] = []
@@ -84,7 +86,12 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     // MARK: - Layout
 
     private func buildContent(in win: NSWindow) {
-        tree.onSelect = { [weak self] url in self?.openFolder(url) }
+        // Selecting a folder in the tree reloads it. Ignore the callback for the folder already open,
+        // or a late callback would reload the folder and stop the track a double-click just started.
+        tree.onSelect = { [weak self] url in
+            guard let self, self.player.folder != url else { return }
+            self.openFolder(url)
+        }
         table.onActivate = { [weak self] row in
             guard let self, self.player.tracks.indices.contains(row) else { return }
             let t = self.player.tracks[row]
@@ -282,8 +289,12 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
             playPauseItem = item
         case ItemID.stop: button("stop.fill", "Stop", #selector(stopPressed))
         case ItemID.next: button("forward.end.fill", "Next", #selector(nextTrack))
-        case ItemID.repeatMode: button("repeat", "Repeat", #selector(cycleRepeat))
-        case ItemID.shuffle: button("shuffle", "Shuffle", #selector(toggleShuffle))
+        case ItemID.repeatMode:
+            button("repeat", "Repeat", #selector(cycleRepeat))
+            repeatItem = item
+        case ItemID.shuffle:
+            button("shuffle", "Shuffle", #selector(toggleShuffle))
+            shuffleItem = item
         case ItemID.search:
             let field = NSSearchField(frame: NSRect(x: 0, y: 0, width: 180, height: 22))
             searchField = field
@@ -423,6 +434,16 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         table.setHeard(player.usesPlaylist ? nil : player.heard)
         playlistTable.setHeard(player.usesPlaylist ? player.heard : nil)
         let playing = player.isPlaying
+        // On states use a filled circle, so the on state reads at toolbar size.
+        let repeatSymbol: String
+        switch player.repeatMode {
+        case .off: repeatSymbol = "repeat"
+        case .all: repeatSymbol = "repeat.circle.fill"
+        case .one: repeatSymbol = "repeat.1.circle.fill"
+        }
+        repeatItem?.image = NSImage(systemSymbolName: repeatSymbol, accessibilityDescription: "Repeat")
+        shuffleItem?.image = NSImage(systemSymbolName: player.shuffle ? "shuffle.circle.fill" : "shuffle",
+                                     accessibilityDescription: "Shuffle")
         playPauseItem?.image = NSImage(systemSymbolName: playing ? "pause.fill" : "play.fill",
                                        accessibilityDescription: playing ? "Pause" : "Play")
         if let t = player.heardTrack {

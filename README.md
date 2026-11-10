@@ -68,6 +68,8 @@ The app is ad hoc signed. It runs on the machine that built it. Public distribut
 | Action | Key |
 | --- | --- |
 | Play or pause | Space |
+| Play the selected row | Return |
+| First or last row | Home or End |
 | Stop | Command-. |
 | Rewind or forward 5 s | Left or Right |
 | Previous or next folder | Shift-Left or Shift-Right |

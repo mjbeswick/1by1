@@ -78,6 +78,19 @@ extension MainWindowController {
         case (51, [.option]) where window?.firstResponder === table.table:       // Option-Delete: to Trash
             trashSelected()
             return true
+        case (49, []):                                                           // Space: play or pause
+            playPausePressed()
+            return true
+        case (36, []) where window?.firstResponder === table.table:             // Return: play the selected row
+            if table.table.selectedRow >= 0 { table.onActivate?(table.table.selectedRow) }
+            return true
+        case (115, []) where window?.firstResponder === table.table:            // Home: first row
+            if table.table.numberOfRows > 0 { table.select(row: 0); table.scrollToRow(0) }
+            return true
+        case (119, []) where window?.firstResponder === table.table:            // End: last row
+            let last = table.table.numberOfRows - 1
+            if last >= 0 { table.select(row: last); table.scrollToRow(last) }
+            return true
         case (117, []), (114, []):                                               // Delete, Insert: skip to next
             player.next()
             return true
