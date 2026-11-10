@@ -32,6 +32,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     var miniPlayer: MiniPlayer?
     var findWindow: FindFilesWindow?
     weak var searchField: NSSearchField?
+    weak var searchToolbarItem: NSSearchToolbarItem?
     var coverContainer: NSView?
     var coverImage: NSImageView?
     var autosaveTimer: Timer?
@@ -270,6 +271,17 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
          ItemID.repeatMode, ItemID.shuffle, .flexibleSpace, ItemID.search]
     }
 
+    private func searchItem(_ id: NSToolbarItem.Identifier) -> NSToolbarItem {
+        let item = NSSearchToolbarItem(itemIdentifier: id)
+        item.searchField.placeholderString = "Search"
+        item.searchField.target = self
+        item.searchField.action = #selector(searchFieldChanged(_:))
+        item.toolTip = "Search the list"
+        searchField = item.searchField
+        searchToolbarItem = item
+        return item
+    }
+
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier,
                  willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         let item = NSToolbarItem(itemIdentifier: id)
@@ -312,13 +324,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
             item.label = "Shuffle"
             item.view = b
         case ItemID.search:
-            let field = NSSearchField(frame: NSRect(x: 0, y: 0, width: 180, height: 22))
-            searchField = field
-            field.placeholderString = "Find in list"
-            field.target = self
-            field.action = #selector(searchFieldChanged(_:))
-            item.label = "Find"
-            item.view = field
+            // Finder's search: a magnifier that expands into a field on click.
+            return searchItem(id)
         default: return nil
         }
         return item
