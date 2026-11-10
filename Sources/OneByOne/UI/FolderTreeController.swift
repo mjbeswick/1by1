@@ -24,6 +24,7 @@ final class FolderTreeController: NSObject, NSOutlineViewDataSource, NSOutlineVi
     private(set) var roots: [URL] = []
     private var rootNodes: [FolderNode] = []
     var onSelect: ((URL) -> Void)?
+    var onActivate: ((URL) -> Void)?
 
     override init() {
         view = NSScrollView()
@@ -39,6 +40,7 @@ final class FolderTreeController: NSObject, NSOutlineViewDataSource, NSOutlineVi
         outline.delegate = self
         outline.target = self
         outline.action = #selector(clicked)
+        outline.doubleAction = #selector(doubleClicked)
         view.documentView = outline
         view.hasVerticalScroller = true
         view.drawsBackground = false
@@ -87,6 +89,12 @@ final class FolderTreeController: NSObject, NSOutlineViewDataSource, NSOutlineVi
                 return
             }
         }
+    }
+
+    /// Double-click on a folder: open it, select its first track and play.
+    @objc private func doubleClicked() {
+        guard let n = outline.item(atRow: outline.clickedRow) as? FolderNode else { return }
+        onActivate?(n.url)
     }
 
     @objc private func clicked() {

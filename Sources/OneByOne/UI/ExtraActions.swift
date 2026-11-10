@@ -216,6 +216,16 @@ extension MainWindowController {
     }
 
     /// Settings-driven extras that have no layout of their own: tray icon, priority.
+    /// Show a folder, select its first track and play it. Used by a double-click in the list or the tree.
+    func playFolderFromStart(_ url: URL) {
+        openFolder(url)
+        tree.select(url)
+        guard let first = player.folderTracks.firstIndex(where: { !$0.isFolder }) else { return }
+        player.playFolder(row: first)
+        table.select(row: first)
+        table.scrollToRow(first)
+    }
+
     /// Bring the main window back, from the menu bar or the Dock.
     @objc func showMainWindow() {
         showWindow(nil)

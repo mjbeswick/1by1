@@ -88,6 +88,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     private func buildContent(in win: NSWindow) {
         // Selecting a folder in the tree reloads it. Ignore the callback for the folder already open,
         // or a late callback would reload the folder and stop the track a double-click just started.
+        tree.onActivate = { [weak self] url in self?.playFolderFromStart(url) }
         tree.onSelect = { [weak self] url in
             guard let self, self.player.folder != url else { return }
             self.openFolder(url)
@@ -99,12 +100,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
                 // A folder plays from its first track, so a double-click starts the music in it.
                 self.openFolder(t.url)
                 self.tree.select(t.url)
-                // Show the folder, select its first track and play it.
-                if let first = self.player.folderTracks.firstIndex(where: { !$0.isFolder }) {
-                    self.player.playFolder(row: first)
-                    self.table.select(row: first)
-                    self.table.scrollToRow(first)
-                }
+                self.playFolderFromStart(t.url)
             } else {
                 self.player.playFolder(row: row)
             }
