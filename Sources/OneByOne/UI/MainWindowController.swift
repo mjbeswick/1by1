@@ -13,8 +13,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     var splitController: NSSplitViewController?
     var ticker: Timer?
     private weak var playPauseItem: NSToolbarItem?
-    private weak var repeatItem: NSToolbarItem?
-    private weak var shuffleItem: NSToolbarItem?
+    private weak var repeatButton: NSButton?
+    private weak var shuffleButton: NSButton?
     var seeking = false
     var infoWindows: [TrackInfoWindow] = []
     var logWindows: [NSWindowController] = []
@@ -252,6 +252,18 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         win.toolbar = tb
     }
 
+    private func toggleButton(_ symbol: String, _ label: String, _ action: Selector, mixed: Bool) -> NSButton {
+        let b = NSButton(image: NSImage(systemSymbolName: symbol, accessibilityDescription: label) ?? NSImage(),
+                         target: self, action: action)
+        b.setButtonType(.pushOnPushOff)
+        b.bezelStyle = .texturedRounded
+        b.imagePosition = .imageOnly
+        b.allowsMixedState = mixed
+        b.toolTip = label
+        b.widthAnchor.constraint(equalToConstant: 34).isActive = true
+        return b
+    }
+
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         [ItemID.tree, ItemID.open, ItemID.listMode, ItemID.prev, ItemID.playPause, ItemID.stop, ItemID.next,
          ItemID.repeatMode, ItemID.shuffle, .flexibleSpace, ItemID.search]
@@ -293,11 +305,16 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         case ItemID.stop: button("stop.fill", "Stop", #selector(stopPressed))
         case ItemID.next: button("forward.end.fill", "Next", #selector(nextTrack))
         case ItemID.repeatMode:
-            button("repeat", "Repeat", #selector(cycleRepeat))
-            repeatItem = item
+            // A toggle button keeps one size and one symbol. The state shows as pressed, or mixed for repeat one.
+            let b = toggleButton("repeat", "Repeat", #selector(cycleRepeat), mixed: true)
+            repeatButton = b
+            item.label = "Repeat"
+            item.view = b
         case ItemID.shuffle:
-            button("shuffle", "Shuffle", #selector(toggleShuffle))
-            shuffleItem = item
+            let b = toggleButton("shuffle", "Shuffle", #selector(toggleShuffle), mixed: false)
+            shuffleButton = b
+            item.label = "Shuffle"
+            item.view = b
         case ItemID.search:
             let field = NSSearchField(frame: NSRect(x: 0, y: 0, width: 180, height: 22))
             searchField = field
@@ -437,16 +454,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         table.setHeard(player.usesPlaylist ? nil : player.heard)
         playlistTable.setHeard(player.usesPlaylist ? player.heard : nil)
         let playing = player.isPlaying
-        // On states use a filled circle, so the on state reads at toolbar size.
-        let repeatSymbol: String
-        switch player.repeatMode {
-        case .off: repeatSymbol = "repeat"
-        case .all: repeatSymbol = "repeat.circle.fill"
-        case .one: repeatSymbol = "repeat.1.circle.fill"
-        }
-        repeatItem?.image = NSImage(systemSymbolName: repeatSymbol, accessibilityDescription: "Repeat")
-        shuffleItem?.image = NSImage(systemSymbolName: player.shuffle ? "shuffle.circle.fill" : "shuffle",
-                                     accessibilityDescription: "Shuffle")
+        repeatButton?.state = player.repeatMode == .off ? .off : (player.repeatMode == .all ? .on : .mixed)
+        shuffleButton?.state = player.shuffle ? .on : .off
         playPauseItem?.image = NSImage(systemSymbolName: playing ? "pause.fill" : "play.fill",
                                        accessibilityDescription: playing ? "Pause" : "Play")
         if let t = player.heardTrack {
