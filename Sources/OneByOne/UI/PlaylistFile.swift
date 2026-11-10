@@ -2,6 +2,20 @@ import AppKit
 import UniformTypeIdentifiers
 
 extension MainWindowController {
+    /// Command-Z: step the playlist back one change.
+    @objc func undoPlaylistChange() {
+        player.undoPlaylist()
+        refresh()
+        statusLabel.stringValue = "Playlist change undone"
+    }
+
+    /// Shift-Command-Z: take back one undo.
+    @objc func redoPlaylistChange() {
+        player.redoPlaylist()
+        refresh()
+        statusLabel.stringValue = "Playlist change redone"
+    }
+
     /// Write the playlist as an extended M3U (UTF-8). Cue sheet bounds are not kept.
     @objc func savePlaylist() {
         guard let window else { return }

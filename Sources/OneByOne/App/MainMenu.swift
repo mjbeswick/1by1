@@ -33,6 +33,9 @@ enum MainMenu {
         play.addItem(withTitle: "Add to Playlist", action: #selector(MainWindowController.enqueueSelected), keyEquivalent: "\r")
             .keyEquivalentModifierMask = [.control]
         play.addItem(withTitle: "Clear Playlist", action: #selector(MainWindowController.clearPlaylist), keyEquivalent: "")
+        play.addItem(withTitle: "Undo Playlist Change", action: #selector(MainWindowController.undoPlaylistChange), keyEquivalent: "z")
+        let redo = play.addItem(withTitle: "Redo Playlist Change", action: #selector(MainWindowController.redoPlaylistChange), keyEquivalent: "z")
+        redo.keyEquivalentModifierMask = [.command, .shift]
         play.addItem(.separator())
         let intro = play.addItem(withTitle: "Intro Scan", action: #selector(MainWindowController.startIntroScan), keyEquivalent: "n")
         intro.keyEquivalentModifierMask = [.control]

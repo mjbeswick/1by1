@@ -10,7 +10,41 @@ final class PlayerController {
     var folder: URL?
     var folderTracks: [Track] = []
     /// Queued tracks from any folder. Played in order when `usesPlaylist` is set.
-    var playlist: [Track] = [] { didSet { scheduleSave() } }
+    /// Earlier playlists, newest last. Every change to `playlist` pushes the old list here.
+    private var playlistUndo: [[Track]] = []
+    /// Playlists taken back by undo, newest last. Cleared by any new change.
+    private var playlistRedo: [[Track]] = []
+    /// Set while undo or the launch restore writes the list, so those writes are not recorded.
+    private var restoringPlaylist = false
+    var playlist: [Track] = [] {
+        willSet {
+            guard !restoringPlaylist, playlist.map(\.url) != newValue.map(\.url) else { return }
+            playlistUndo.append(playlist)
+            if playlistUndo.count > 50 { playlistUndo.removeFirst() }
+            playlistRedo.removeAll()
+        }
+        didSet { scheduleSave() }
+    }
+
+    /// Put back the playlist as it was before the last change.
+    func undoPlaylist() {
+        guard let previous = playlistUndo.popLast() else { return }
+        playlistRedo.append(playlist)
+        restoringPlaylist = true
+        playlist = previous
+        restoringPlaylist = false
+        onChange?()
+    }
+
+    /// Put back the change that undo took back.
+    func redoPlaylist() {
+        guard let next = playlistRedo.popLast() else { return }
+        playlistUndo.append(playlist)
+        restoringPlaylist = true
+        playlist = next
+        restoringPlaylist = false
+        onChange?()
+    }
     var usesPlaylist = false
 
     /// The list playback walks: the playlist or the current folder.
@@ -95,6 +129,8 @@ final class PlayerController {
 
     /// Rebuild the saved playlist. Files that no longer exist are dropped.
     func restorePlaylist() {
+        restoringPlaylist = true
+        defer { restoringPlaylist = false }
         playlist = settings.playlistEntries.compactMap { e in
             let url = URL(fileURLWithPath: e.path)
             guard FileManager.default.fileExists(atPath: url.path) else { return nil }
