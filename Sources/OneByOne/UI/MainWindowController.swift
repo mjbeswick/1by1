@@ -88,7 +88,16 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         table.onActivate = { [weak self] row in
             guard let self, self.player.tracks.indices.contains(row) else { return }
             let t = self.player.tracks[row]
-            if t.isFolder { self.openFolder(t.url); self.tree.select(t.url) } else { self.player.playFolder(row: row) }
+            if t.isFolder {
+                // A folder plays from its first track, so a double-click starts the music in it.
+                self.openFolder(t.url)
+                self.tree.select(t.url)
+                if let first = self.player.folderTracks.firstIndex(where: { !$0.isFolder }) {
+                    self.player.playFolder(row: first)
+                }
+            } else {
+                self.player.playFolder(row: row)
+            }
         }
         table.onSelectionChange = { [weak self] in self?.updateStatus() }
         table.table.menuForRow = { [weak self] row in
