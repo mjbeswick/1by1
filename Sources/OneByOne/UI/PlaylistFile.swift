@@ -39,4 +39,30 @@ extension MainWindowController {
             self.statusLabel.stringValue = "Loaded \(tracks.count) tracks from \(url.lastPathComponent)"
         }
     }
+
+    /// Queue every audio file under `root`, subfolders included. The scan runs off the main thread.
+    func addTreeToPlaylist(_ root: URL) {
+        statusLabel.stringValue = "Scanning \(root.lastPathComponent)..."
+        DispatchQueue.global(qos: .userInitiated).async {
+            var found: [URL] = []
+            if let e = FileManager.default.enumerator(at: root,
+                                                      includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
+                                                      options: [.skipsHiddenFiles]) {
+                for case let url as URL in e {
+                    let v = try? url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                    if v?.isSymbolicLink == true { e.skipDescendants(); continue }
+                    if v?.isDirectory == false, isAudio(url) { found.append(url) }
+                }
+            }
+            // Natural order by path, so each folder's files keep their sequence.
+            found.sort { naturalCompare($0.path, $1.path) == .orderedAscending }
+            let tracks = found.map(Track.init(url:))
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.player.playlist += tracks
+                self.refresh()
+                self.statusLabel.stringValue = "Added \(tracks.count) tracks from \(root.lastPathComponent)"
+            }
+        }
+    }
 }

@@ -105,6 +105,9 @@ extension MainWindowController {
     func treeMenu(url: URL) -> NSMenu {
         let menu = NSMenu()
         menu.addItem(menuItem("Open Folder", symbol: "folder") { [weak self] in self?.openFolder(url) })
+        menu.addItem(menuItem("Add Folder and Subfolders to Playlist", symbol: "text.badge.plus") { [weak self] in
+            self?.addTreeToPlaylist(url)
+        })
         menu.addItem(menuItem("New Folder...", symbol: "folder.badge.plus") { [weak self] in self?.newFolder(in: url) })
         menu.addItem(menuItem("Rename Folder...", symbol: "pencil") { [weak self] in self?.renameFolder(url) })
         menu.addItem(menuItem("Move Folder to Trash", symbol: "trash") { [weak self] in self?.trashFolder(url) })
