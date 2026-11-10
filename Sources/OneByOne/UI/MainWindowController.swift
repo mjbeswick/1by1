@@ -99,8 +99,11 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
                 // A folder plays from its first track, so a double-click starts the music in it.
                 self.openFolder(t.url)
                 self.tree.select(t.url)
+                // Show the folder, select its first track and play it.
                 if let first = self.player.folderTracks.firstIndex(where: { !$0.isFolder }) {
                     self.player.playFolder(row: first)
+                    self.table.select(row: first)
+                    self.table.scrollToRow(first)
                 }
             } else {
                 self.player.playFolder(row: row)
