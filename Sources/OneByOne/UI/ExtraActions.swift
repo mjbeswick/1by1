@@ -246,8 +246,12 @@ extension MainWindowController {
             host.view = mini.view
             menu.addItem(host)
             menu.addItem(.separator())
-            menu.addItem(withTitle: "Show Main Window", action: #selector(showMainWindow), keyEquivalent: "").target = self
-            menu.addItem(withTitle: "Quit 1by1", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "").target = NSApp
+            let show = menu.addItem(withTitle: "Show Main Window", action: #selector(showMainWindow), keyEquivalent: "")
+            show.target = self
+            show.image = NSImage(systemSymbolName: "macwindow", accessibilityDescription: nil)
+            let quit = menu.addItem(withTitle: "Quit 1by1", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
+            quit.target = NSApp
+            quit.image = NSImage(systemSymbolName: "xmark.circle", accessibilityDescription: nil)
             item.menu = menu
             statusItem = item
         } else if !s.trayIcon, let item = statusItem {

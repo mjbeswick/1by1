@@ -65,7 +65,7 @@ extension MainWindowController {
         guard let container = coverContainer, let image = coverImage else { return }
         container.isHidden = !s.coverArt || s.coverMode == .off
         guard !container.isHidden, let folder = player.folder else { return }
-        if let img = coverArt(in: folder, names: s.coverNames) {
+        if let img = player.heardTrack.flatMap({ embeddedArt($0.url) }) ?? coverArt(in: folder, names: s.coverNames) {
             image.image = img
             container.isHidden = false
         } else {
