@@ -277,6 +277,8 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
         item.maxSize = toggle.intrinsicContentSize
         item.label = "Search"
         item.toolTip = "Search the list"
+        // When the window is narrow the toolbar hides lower items first, instead of overlapping them.
+        item.visibilityPriority = .high
         searchField = toggle.field
         searchToggle = toggle
         return item
