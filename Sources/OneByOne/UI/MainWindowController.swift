@@ -29,7 +29,7 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     var miniPlayer: MiniPlayer?
     var findWindow: FindFilesWindow?
     weak var searchField: NSSearchField?
-    weak var searchToolbarItem: NSSearchToolbarItem?
+    weak var searchToggle: SearchToggle?
     var coverContainer: NSView?
     var coverImage: NSImageView?
     var autosaveTimer: Timer?
@@ -264,13 +264,21 @@ final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindo
     }
 
     private func searchItem(_ id: NSToolbarItem.Identifier) -> NSToolbarItem {
-        let item = NSSearchToolbarItem(itemIdentifier: id)
-        item.searchField.placeholderString = "Search"
-        item.searchField.target = self
-        item.searchField.action = #selector(searchFieldChanged(_:))
+        let item = NSToolbarItem(itemIdentifier: id)
+        let toggle = SearchToggle(target: self, action: #selector(searchFieldChanged(_:)))
+        // The toolbar sizes the item from its min and max, so both follow the field's open or closed state.
+        toggle.onResize = { [weak item, weak toggle] in
+            guard let item, let size = toggle?.intrinsicContentSize else { return }
+            item.minSize = size
+            item.maxSize = size
+        }
+        item.view = toggle
+        item.minSize = toggle.intrinsicContentSize
+        item.maxSize = toggle.intrinsicContentSize
+        item.label = "Search"
         item.toolTip = "Search the list"
-        searchField = item.searchField
-        searchToolbarItem = item
+        searchField = toggle.field
+        searchToggle = toggle
         return item
     }
 

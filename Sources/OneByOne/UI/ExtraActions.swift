@@ -115,7 +115,7 @@ extension MainWindowController {
 extension MainWindowController {
     @objc func focusSearch() {
         // Expands the collapsed toolbar search and puts the cursor in it.
-        searchToolbarItem?.beginSearchInteraction()
+        searchToggle?.expand()
     }
 }
 
