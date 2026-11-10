@@ -36,4 +36,7 @@
   <rect x="304" y="540" width="330" height="12" rx="6" fill="#8fb1e3"/>
   <rect x="264" y="594" width="496" height="52" rx="14" fill="#dbe8fb"/>
   <rect x="304" y="614" width="270" height="12" rx="6" fill="#8fb1e3"/>
+  <!-- play badge on the folder: the music player cue -->
+  <circle cx="724" cy="700" r="118" fill="#0a84ff" stroke="#ffffff" stroke-width="22"/>
+  <path d="M694 644 L770 700 L694 756 Z" fill="#ffffff" stroke="#ffffff" stroke-width="18" stroke-linejoin="round"/>
 </svg>
