@@ -15,6 +15,7 @@ final class MiniPlayer: NSObject, NSMenuDelegate {
     private var seekHoldUntil = Date.distantPast
     private let playPause = NSButton()
     private let shuffle = NSButton()
+    private let repeatButton = NSButton()
     private var timer: Timer?
     private var artFolder: URL?
     private var cachedArt: NSImage?
@@ -46,10 +47,12 @@ final class MiniPlayer: NSObject, NSMenuDelegate {
         seek.target = self
         seek.action = #selector(seekMoved(_:))
         for v in [artwork, titleLabel, artistLabel, timeLabel, seek] { view.addSubview(v) }
-        button(NSButton(), "backward.end.fill", x: 68, action: #selector(MainWindowController.previousTrack))
-        button(playPause, "play.fill", x: 104, action: #selector(MainWindowController.playPausePressed))
-        button(NSButton(), "forward.end.fill", x: 140, action: #selector(MainWindowController.nextTrack))
-        button(shuffle, "shuffle", x: 176, action: #selector(MainWindowController.toggleShuffle))
+        // Five buttons, centred on the 280 pt width.
+        button(NSButton(), "backward.end.fill", x: 52, action: #selector(MainWindowController.previousTrack))
+        button(playPause, "play.fill", x: 88, action: #selector(MainWindowController.playPausePressed))
+        button(NSButton(), "forward.end.fill", x: 124, action: #selector(MainWindowController.nextTrack))
+        button(shuffle, "shuffle", x: 160, action: #selector(MainWindowController.toggleShuffle))
+        button(repeatButton, "repeat", x: 196, action: #selector(MainWindowController.cycleRepeat))
         update()
     }
 
@@ -74,6 +77,9 @@ final class MiniPlayer: NSObject, NSMenuDelegate {
         playPause.image = NSImage(systemSymbolName: player.isPlaying ? "pause.fill" : "play.fill",
                                   accessibilityDescription: nil)
         shuffle.contentTintColor = player.shuffle ? .controlAccentColor : .secondaryLabelColor
+        repeatButton.image = NSImage(systemSymbolName: player.repeatMode == .one ? "repeat.1" : "repeat",
+                                     accessibilityDescription: "Repeat")
+        repeatButton.contentTintColor = player.repeatMode == .off ? .secondaryLabelColor : .controlAccentColor
         setArtwork(track?.url.deletingLastPathComponent())
         seek.isEnabled = track != nil && (player.duration ?? 0) > 0
         if Date() > seekHoldUntil {
